@@ -1,4 +1,3 @@
-# CS50 Nuggets
 ## Implementation Spec
 ### Team name, term, year
 
@@ -12,9 +11,28 @@ We avoid repeating information that is provided in the requirements spec.
 
 ## Plan for division of labor
 
-> Update your plan for distributing the project work among your 3(4) team members.
-> Who writes the client program, the server program, each module?
-> Who is responsible for various aspects of testing, for documentation, etc?
+#### Server Side:
+
+- Nafis 
+    - readMessage Module
+    - sendMessage Module
+- Joe 
+    - Game Module
+        - Handles game initialization
+        - Handles game state updates whenever literally anything happens from any client
+- Anya
+     - Map module
+    - Map conversion from .txt to array and back
+Set of functions that manage maps: take in a map, a command, and some player info return a new map 
+
+#### Client Side:
+
+- CC
+    - readMessage Module
+    - sendMessage Module
+Can remove gameStatus
+Make sure to handle mal messages
+
 
 ## Player
 
@@ -85,13 +103,125 @@ static int parseArgs(const int argc, char* argv[]);
 
 ---
 
-## XYZ module
-
-> For each module, repeat the same framework above.
+## Game module
 
 ### Data structures
 
+#### Game Struct
+
+```C
+typedef struct game {
+    char* map;
+    hashtable_t* players;
+    player_t* activePlayers[];
+    int goldRemaning;
+} game_t;
+```
+
+#### Player Struct
+```C
+typedef struct player {
+    char* playerName;
+    char* playerMap;
+    char role;
+    int xPosition;
+    int yPosition;
+    int goldCaptured;
+    bool isActive;
+} player_t;
+```
 ### Definition of function prototypes
+
+`initializeGame`
+Initializes the game state, including map, players, and gold piles. 
+```C
+int initializeGame(const char* mapFile, int seed);
+```
+
+`updateGameState`
+Updates the game state based on player actions or events.
+```C
+void updateGameState(player_t* player, char action);
+```
+
+`move`
+Modifies the encoded map string to move the player character to a requested location only if move is valid (no wall, no deadend, etc). Also checks if player moves onto gold. Returns new encoded visible map.
+```C
+char* move(char* currentVisibleMap, char moveType, int xPos, int yPos);
+```
+
+### Detailed pseudo code
+
+`initalizeGame`
+```
+encode map to string from mapfile
+place gold piles randomly on map
+initialize player hashtable in global game object
+initialize active players array in global game object
+intialize gold
+```
+
+`updateGameState`
+```
+receive player action
+switch (action):
+    case move:
+    check if move is valid:
+    if valid:
+        update player pos
+        check if player collected gold
+        if collected gold:
+            increment players gold
+            decrement gold remaining
+        refresh all players visible map
+    case quit:
+        deactivate player in players hashtable
+        remove player from active players array
+    if goldRemaining is zero:
+        end game and show results
+```
+
+---
+
+
+---
+
+
+## Map module
+
+The module will utilize previously specified player_t struct.
+The idea of the module is to handle changes to what each client who is plyaing sees.
+
+Important definitions for this module's description:
+
+playerMap - the map the client sees on their computer
+visibleMap - the map the player sees at one time (i.e. not inclusing previously seen rooms etc., equivalent to the region where a player would see gold)
+masterMap - the full game map with up to date player positions and gold positions, taken care of in game module 
+
+### Data structures
+
+```C
+typedef struct player {
+    char* playerName;
+    char* playerMap;
+    char role;
+    int xPosition;
+    int yPosition;
+    int goldCaptured;
+    bool isActive;
+} player_t;
+```
+
+### Definition of function prototypes
+
+Function that turns a .txt file into a string.
+`char* map_encode(FILE* fp);`
+
+Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
+`void map_player_init(char* masterMap, int* x, int* y, int seed);`
+
+Function that takes in a player's coordinates and the master map  
+`void map_get_visible(int x, int y, char* masterMap char* visibleMap);`
 
 ### Detailed pseudo code
 
