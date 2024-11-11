@@ -15,8 +15,6 @@
 #include "server.h"
 
 
-
-
 int main(int argc, char* argv[])
 {
 
@@ -32,8 +30,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-
-  printGame(game);
+  game_print(game);
 
   printf("Game initialized successfully with map.\n");
   printf("Waiting for players to join...\n");
@@ -45,7 +42,8 @@ int main(int argc, char* argv[])
 
 
 // Function to parse command-line arguments, validate them, and open the map file
-FILE* parseArgs(int argc, char* argv[], int* seed) {
+FILE* parseArgs(int argc, char* argv[], int* seed) 
+{
     // Check for the correct number of arguments
     if (argc < 2 || argc > 3) {
         fprintf(stderr, "Usage: %s map.txt [seed]\n", argv[0]);
@@ -69,27 +67,5 @@ FILE* parseArgs(int argc, char* argv[], int* seed) {
 }
 
 
-// Function to print the game details, including the map, dimensions, and gold remaining
-void printGame(const game_t* game) {
-    if (game == NULL) {
-        printf("Game is not initialized.\n");
-        return;
-    }
 
-    printf("Game initialized with the following details:\n");
-    printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
-    printf("Encoded Map Length: %d\n", game->encodedMapLength);
-    printf("Gold Remaining: %d\n", game->goldRemaning);
-
-    printf("Encoded Map:\n%s\n", game->map);
-
-    // Print the map itself
-    printf("Map:\n");
-    for (int i = 0; i < game->mapHeight; i++) {
-        for (int j = 0; j < game->mapWidth; j++) {
-            putchar(game->map[i * game->mapWidth + j]);
-        }
-        putchar('\n');
-    }
-}
 

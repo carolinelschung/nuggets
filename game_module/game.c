@@ -35,15 +35,19 @@ typedef struct player {
 
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
-void placeGold(game_t* game);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
     game_t* game = mem_malloc_assert(sizeof(game_t), "game struct allocation");
 
     game->map = encodeMap(mapFile, game);
-
-    // (Continue with further initialization...)
+    game->goldRemaining = GoldTotal;
+    game->players = hashtable_new(27);
+    
+    // initialize activePlayers array
+    for (int i = 0; i < MaxPlayers; i++) {
+        game->activePlayers[i] = NULL;
+    }
 
     return game;  // Return the initialized game struct
 }
@@ -107,3 +111,19 @@ char* encodeMap(FILE* mapFile, game_t* game)
     fclose(mapFile);
     return map;
 }
+
+void game_print(const game_t* game)
+{
+    if (game == NULL) {
+        printf("Game is not initialized.\n");
+        return;
+    }
+
+    printf("Game initialized with the following details:\n");
+    printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
+    printf("Encoded Map Length: %d\n", game->encodedMapLength);
+    printf("Gold Remaining: %d\n", game->goldRemaining);
+
+    printf("Encoded Map:\n%s\n", game->map);
+}
+
