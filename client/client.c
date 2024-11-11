@@ -178,6 +178,5 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
 
   // fill display with " " chars at first as placeholder
   memset(state->display, ' ', num_cols * num_rows);
-
   return true;
 }
