@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "message.h"
 #include "log.h"
+#include <ncurses.h>
 
 #define MAX_NAME_LENGTH 50 // max number of chars in playerName
 #define GOLD_TOTAL 250 // total amount of gold in the game
@@ -178,5 +179,87 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
 
   // fill display with " " chars at first as placeholder
   memset(state->display, ' ', num_cols * num_rows);
+  return true;
+}
+
+/******************* handle_server_message *****************/
+/*
+ * handle_server_message - handles server messages, calling relevant
+ * helper functions as necessary
+ * 
+ *
+ * Caller provides:
+ *   arg - struct that holds current game state
+ *   from - number of rows 
+ *   message - number of columns
+ * Returns:
+ *   True if message handling works.  False otherwise.
+ */
+static bool handle_server_message(void* arg, const addr_t from, const char* message)
+{
+  
+  // do i have to initialize a new variable for this part? necessary? if i call it in main is it fine?
+  client_game_state_t* state = arg;
+
+  if (strncmp(message, "GRID", 4) == 0) {
+    handle_message_grid(state, message);
+  }
+}
+
+/******************* handle_message_grid *****************/
+/*
+ * handle_message_grid - handles "GRID" server messages, updating client game state
+ * and checking that the display is sufficiently large using helper function called
+ * check_display_dimensions.
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info 
+ *   message - number of columns
+ * Returns:
+ *   True if message handling works.  False otherwise.
+ */
+static bool handle_message_grid(client_game_state_t* state, const char* message)
+{
+  int rows;
+  int cols; 
+
+  // update game state to have most curr rows and cols 
+  sscanf(message, "GRID %d %d", &rows, &cols);
+  state->num_cols = cols;
+  state->num_rows = rows;
+
+  // check to make sure the dimensions of the display are valid
+  if (check_display_dimensions(rows, cols)) {
+    // initialize the display with the appropriate amount of rows and cols
+    initialize_display(state, rows, cols);
+  }
+  else {
+    fprintf(stderr, "Error: Display dimensions are too small for the game.\n");
+  }
+}
+
+/******************* check_display_dimensions *****************/
+/*
+ * check_display_dimensions - checks for valid dimensions of the display
+ * compared to the number of rows and columns needed for the map
+ * 
+ * Caller provides:
+ *   num_rows - number of rows needed for the map
+ *   num_cols - number of columns needed for the map
+ * Returns:
+ *   True if display is sufficiently large.  False otherwise.
+ */
+bool check_display_dimensions(int num_rows, int num_cols) {
+  int max_rows;
+  int max_cols;
+
+  // get curr display size
+  getmaxyx(stdscr, max_rows, max_cols); 
+
+  if (max_rows < num_rows || max_cols < num_cols) {
+    fprintf(stderr, "Error: Terminal size too small. Please resize to at least %d rows and %d column\n", num_rows, num_cols);
+    return false;
+  }
+
   return true;
 }
