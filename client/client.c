@@ -22,14 +22,14 @@ typedef struct client_start {
 } client_start_t;
 
 // struct to hold current game state information
-typedef struct game_state {
+typedef struct client_game_state {
   int num_rows;
   int num_cols;
   int goldCollected;
   int goldRemaining;
   char* display;
   char* statusLine;
-} game_state_t;
+} client_game_state_t;
 
 /************* function prototypes ************/
 
@@ -38,7 +38,7 @@ typedef struct game_state {
 // int main(int argc, char* argv[]) 
 // {
 //   client_start_t* client;
-//   game_state_t* state;
+//   client_game_state_t* state;
 
 //   initialize_client(client, unkwnonw, stderr, argv, argv);
 
@@ -60,7 +60,7 @@ typedef struct game_state {
  * Returns:
  *   True if initialization works.  False otherwise.
  */
-bool initialize_client(game_state_t* state, client_start_t* client, addr_t* serverAddress, FILE* logFP, int argc, char* argv[])
+bool initialize_client(client_game_state_t* state, client_start_t* client, addr_t* serverAddress, FILE* logFP, int argc, char* argv[])
 {
   // initialize logging module
   log_init(logFP); 
@@ -96,6 +96,7 @@ bool initialize_client(game_state_t* state, client_start_t* client, addr_t* serv
     fprintf(stderr, "Error: Unabe to allocate memory for status line\n");
     return false;
   }
+  // make the status line empty at first
   memset(state->statusLine, ' ', MAX_STATUS_LENGTH);
 
   return true;
@@ -150,33 +151,33 @@ void parseArgs(client_start_t* client, int argc, char* argv[])
   }
 }
 
-// /******************* initialize_display *****************/
-// /*
-//  * initialize_display - sets up the display initially and checks for 
-//  * valid window size based on "GRID" message from server.
-//  *
-//  * Caller provides:
-//  *   state - struct that holds current game state
-//  *   num_rows - number of rows 
-//  *   num_cols - number of columns
-//  * Returns:
-//  *   True if initialization works.  False otherwise.
-//  */
-// bool initialize_display(game_state_t* state, int num_rows, int num_cols) 
-// {
-//   // set the number of rows and columns in the game state struct
-//   state->num_cols = num_cols;
-//   state->num_rows = num_rows;
+/******************* initialize_display *****************/
+/*
+ * initialize_display - sets up the display initially and checks for 
+ * valid window size based on "GRID" message from server.
+ *
+ * Caller provides:
+ *   state - struct that holds current game state
+ *   num_rows - number of rows 
+ *   num_cols - number of columns
+ * Returns:
+ *   True if initialization works.  False otherwise.
+ */
+bool initialize_display(client_game_state_t* state, int num_rows, int num_cols) 
+{
+  // set the number of rows and columns in the game state struct
+  state->num_cols = num_cols;
+  state->num_rows = num_rows;
 
-//   // dynamically allocate memory for the display based on the grid size
-//   state->display = malloc(num_cols * num_rows * sizeof(char));
-//   if (state->display == NULL) { // check for mem alloc failure
-//     fprintf(stderr, "Error: Unable to allocate memory for grid display\n");
-//     return false;
-//   }
+  // dynamically allocate memory for the display based on the grid size
+  state->display = malloc(num_cols * num_rows * sizeof(char));
+  if (state->display == NULL) { // check for mem alloc failure
+    fprintf(stderr, "Error: Unable to allocate memory for grid display\n");
+    return false;
+  }
 
-//   // fill display with " " chars at first as placeholder
-//   memset(state->display, ' ', num_cols * num_rows);
+  // fill display with " " chars at first as placeholder
+  memset(state->display, ' ', num_cols * num_rows);
 
-//   return true;
-// }
+  return true;
+}
