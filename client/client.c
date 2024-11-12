@@ -132,6 +132,15 @@ bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* 
     return false;
   }
   
+  // Send the initial message based on whether the client is a player or a spectator
+  if (state->client->isSpectator) {
+    message_send(*serverAddress, "SPECTATE");
+  } else {
+    char playMessage[message_MaxBytes];
+    snprintf(playMessage, sizeof(playMessage), "PLAY %s", state->client->playerName);
+    message_send(*serverAddress, playMessage);
+  }
+
   return true;
 }
 
