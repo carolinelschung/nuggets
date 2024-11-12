@@ -27,6 +27,7 @@
 typedef struct player player_t;
 typedef struct game {
     char* map;
+    int port;
     int mapHeight;
     int mapWidth;
     int encodedMapLength;

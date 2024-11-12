@@ -11,9 +11,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <unistd.h>
 #include "../libcs50/hashtable.h"
 #include "../libcs50/mem.h"
 #include "game.h"
+#include "../support/message.h"
 
 #define GoldTotal 250
 #define GoldMinNumPiles 10
@@ -35,24 +37,63 @@ typedef struct player {
 
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
+void placeGold(game_t* game);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
     game_t* game = mem_malloc_assert(sizeof(game_t), "game struct allocation");
 
+    // Setup srand logic
+    if (seed != 0) {
+        srand(seed);
+    } else {
+        srand(getpid());
+    }
+
     game->map = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
-    
+
     // initialize activePlayers array
     for (int i = 0; i < MaxPlayers; i++) {
         game->activePlayers[i] = NULL;
     }
 
+    placeGold(game);
+
+    game_print(game);
+    
     return game;  // Return the initialized game struct
 }
 
-/**************** loadMap ****************/
+/**************** game_print ****************/
+/* Prints metadata of a game object */
+void game_print(const game_t* game)
+{
+    if (game == NULL) {
+        printf("Game is not initialized.\n");
+        return;
+    }
+
+    printf("Game initialized with the following details:\n");
+    printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
+    printf("Encoded Map Length: %d\n", game->encodedMapLength);
+    printf("Gold Remaining: %d\n", game->goldRemaining);
+
+
+    for (int i = 0; i < game->encodedMapLength; i++) {
+        putchar(game->map[i]);
+        // If we've reached the end of a row, print a newline
+        if ((i + 1) % game->mapWidth == 0) {
+            putchar('\n');
+        }
+    }
+}
+
+
+/************* HELPER FUNCTIONS *****************/
+
+/**************** encodeMap ****************/
 /* Reads the map file and returns it as a string, setting the map length and width. */
 char* encodeMap(FILE* mapFile, game_t* game) 
 {
@@ -112,18 +153,37 @@ char* encodeMap(FILE* mapFile, game_t* game)
     return map;
 }
 
-void game_print(const game_t* game)
+
+/**************** placeGold ****************/
+/* Places gold randomly on map for a given game */
+void placeGold(game_t* game)
 {
-    if (game == NULL) {
-        printf("Game is not initialized.\n");
+    if (game == NULL || game->map == NULL) {
+        fprintf(stderr, "Game or map is not initialized.\n");
         return;
     }
 
-    printf("Game initialized with the following details:\n");
-    printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
-    printf("Encoded Map Length: %d\n", game->encodedMapLength);
-    printf("Gold Remaining: %d\n", game->goldRemaining);
 
-    printf("Encoded Map:\n%s\n", game->map);
+    // Get random number of piles between GoldMinNumPiles and GoldMaxNumPiles
+    int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
+    int goldRemaining = GoldTotal;
+
+    for (int i = 0; i < numPiles; i++) 
+    {
+        int maxPileSize = goldRemaining - (numPiles - i - 1); //Makes sure enough gold
+        int pileSize = 1 + rand() % maxPileSize;
+
+        goldRemaining -= pileSize;
+
+
+        bool spotFound = false;
+        while (!spotFound) {
+            int randIndex = rand() % game->encodedMapLength;
+            if (game->map[randIndex] == '.') {
+                game->map[randIndex] = '*';
+                spotFound = true;
+            }
+        }
+    }
 }
 

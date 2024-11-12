@@ -1,9 +1,9 @@
 # Compiler and flags
 CC = gcc
-CFLAGS = -Wall -pedantic -std=c11 -ggdb -Ilibcs50 -Igame_module
+CFLAGS = -Wall -pedantic -std=c11 -ggdb -Ilibcs50 -Igame_module -Isupport
 
-# Libraries - libcs50.a path
-LIBS = libcs50/libcs50.a
+# Libraries - paths for libcs50.a and support.a
+LIBS = libcs50/libcs50.a support/support.a
 
 # Executable
 EXE = server
@@ -17,8 +17,12 @@ $(EXE): $(OBJS) $(LIBS)
 	$(CC) $(CFLAGS) -o $(EXE) $(OBJS) $(LIBS)
 
 # Build libcs50 library
-$(LIBS):
+libcs50/libcs50.a:
 	$(MAKE) -C libcs50
+
+# Build support library
+support/support.a:
+	$(MAKE) -C support
 
 # Compile server.c
 server.o: server.c game_module/game.h server.h
@@ -32,3 +36,4 @@ game.o: game_module/game.c game_module/game.h
 clean:
 	rm -f $(EXE) $(OBJS)
 	$(MAKE) -C libcs50 clean
+	$(MAKE) -C support clean
