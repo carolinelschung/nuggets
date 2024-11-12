@@ -100,6 +100,9 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
  * Caller provides:
  *   state - pointer to client_game_state_t struct containing current game state
  *   message - message from server
+ * Notes:
+ *   message from server should be formatted as "GRID rows cols", where the explanation 
+ *   is a string to be printed so the client can see on their end.
  * Returns:
  *   nothing
  */
@@ -127,6 +130,9 @@ static bool check_display_dimensions(int num_rows, int num_cols);
  * Caller provides:
  *   state - pointer to client_game_state_t struct containing current game state
  *   message - message from server
+ * Notes:
+ *   message from server should be formatted as "GOLD n p r", where the explanation 
+ *   is a string to be printed so the client can see on their end.
  * Returns:
  *   nothing
  */

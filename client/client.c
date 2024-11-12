@@ -232,17 +232,21 @@ void handle_grid_message(client_game_state_t* state, const char* message)
   int cols; 
 
   // update game state to have most curr rows and cols 
-  sscanf(message, "GRID %d %d", &rows, &cols);
-  state->num_cols = cols;
-  state->num_rows = rows;
+  if (sscanf(message, "GRID %d %d", &rows, &cols) == 1) {
+    state->num_cols = cols;
+    state->num_rows = rows;
 
-  // check to make sure the dimensions of the display are valid
-  if (check_display_dimensions(rows, cols)) {
-    // initialize the display with the appropriate amount of rows and cols
-    initialize_display(state, rows, cols);
+    // check to make sure the dimensions of the display are valid
+    if (check_display_dimensions(rows, cols)) {
+      // initialize the display with the appropriate amount of rows and cols
+      initialize_display(state, rows, cols);
+    }
+    else {
+      fprintf(stderr, "Error: Display dimensions are too small for the game.\n");
+    }
   }
   else {
-    fprintf(stderr, "Error: Display dimensions are too small for the game.\n");
+    fprintf(stderr, "Error: GRID message from server could not be read\n");
   }
 }
 
@@ -276,14 +280,18 @@ void handle_gold_message(client_game_state_t* state, const char* message)
   int r;
 
   // read the message for GOLD n p r format
-  sscanf(message, "GOLD %d %d %d", &n, &p, &r);
+  if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 1) {
+    // update game state appropriately
+    state->purseGold = p;
+    state->goldRemaining = r;
 
-  // update game state appropriately
-  state->purseGold = p;
-  state->goldRemaining = r;
+    // update status line
+    update_status_line(state);
+  }
+  else {
+    fprintf(stderr, "Error: Gold message from server could not be read.\n");
+  }
 
-  // update status line
-  update_status_line(state);
 }
 
 /******************* update_status_line *****************/
