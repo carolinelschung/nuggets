@@ -9,15 +9,6 @@
 
 #define MAX_NAME_LENGTH 50 // max number of chars in playerName
 #define GOLD_TOTAL 250 // total amount of gold in the game
-// based on line given in reguirements spec, 
-// "Player A has 39 nuggets (211 nuggets unclaimed). GOLD received: 39"
-// but adding 200 characters as a buffer to acocunt for potential explanantion
-#define MAX_STATUS_LENGTH 260
-// 26 * (MAX_NAME_LENGTH + 20) + 20 chars for end of game header 
-#define MAX_QUIT_MESSAGE_LENGTH 1900
-// the implementation spec said that the error message would be short so i chose
-// an abritrary number
-#define MAX_ERROR_MESSAGE_LENGTH 200
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
@@ -121,7 +112,7 @@ bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* 
   }
 
   // initialize statusLine
-  state->statusLine = malloc(MAX_STATUS_LENGTH * sizeof(char));
+  state->statusLine = malloc(message_MaxBytes * sizeof(char));
   if (state->statusLine == NULL) {
     fprintf(stderr, "Error: Unable to allocate memory for status line.\n");
     return false;
@@ -364,13 +355,13 @@ void update_status_line(client_game_state_t* state)
   if (state->purseGold >= 0 && state->goldRemaining >= 0) {
     if (!state->client->isSpectator) {
       // compose the status line for a player
-      snprintf(state->statusLine, MAX_STATUS_LENGTH, 
+      snprintf(state->statusLine, message_MaxBytes, 
       "Player %c has %d nuggets (%d nuggets unclaimed).",
       state->playerSymbol, state->purseGold, state->goldRemaining);
     }
     else {
       // compose the status line for a spectator
-      snprintf(state->statusLine, MAX_STATUS_LENGTH,
+      snprintf(state->statusLine, message_MaxBytes,
       "Spectator: %d nugget unclaimed. Play at %s %d",
       state->goldRemaining, state->client->hostname, state->client->port);
     }
@@ -466,7 +457,7 @@ static void handle_error_message(client_game_state_t* state, char* message)
   // parse the message for the explanation
   if (sscanf(message, "ERROR %[^\n]", explanation) == 1) {
     // print the explanation
-    snprintf(state->statusLine, MAX_STATUS_LENGTH, "Error: %s", explanation);
+    snprintf(state->statusLine, message_MaxBytes, "Error: %s", explanation);
   }
   else {
     fprintf(stderr, "Error: Failed to parse ERROR message from server.\n");
