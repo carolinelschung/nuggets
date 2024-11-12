@@ -28,6 +28,7 @@ typedef struct client_game_state {
   int num_cols;
   int purseGold;
   int goldRemaining;
+  char playerSymbol;
   char* display;
   char* statusLine;
   client_init_t* client;  
@@ -194,6 +195,9 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   else if (strncmp(message, "GOLD", 4) == 0) {
     handle_gold_message(state, message);
   }
+  else if (strncmp(message, "OK", 2) == 0) {
+    handle_ok_message(state, message);
+  }
   
   return true;
 }
@@ -309,8 +313,8 @@ void update_status_line(client_game_state_t* state)
     if (!state->client->isSpectator) {
       // compose the status line for a player
       snprintf(state->statusLine, MAX_STATUS_LENGTH, 
-      "Player %s has %d nuggets (%d nuggets unclaimed).",
-      state->client->playerName, state->purseGold, state->goldRemaining);
+      "Player %c has %d nuggets (%d nuggets unclaimed).",
+      state->playerSymbol, state->purseGold, state->goldRemaining);
     }
     else {
       // compose the status line for a spectator
@@ -318,5 +322,37 @@ void update_status_line(client_game_state_t* state)
       "Spectator: %d nugget unclaimed. Play at %s %d",
       state->goldRemaining, state->client->hostname, state->client->port);
     }
+  }
+}
+
+/******************* handle_ok_message *****************/
+/*
+ * handle_ok_message - handles ok messages by storing the character as the player symbol
+ * in the client game state struct
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info
+ *   message - message from server 
+ * Note:
+ *   message from server should be formatted as "OK L", where 'L' 
+ *   is the player's symbol
+ * Returns:
+ *   nothing
+ */
+void handle_ok_message(client_game_state_t* state, const char* message) 
+{
+  char playerSymbol;
+
+  // parse the message for the player symbol
+  sscanf(message, "OK %c", playerSymbol);
+
+  // check to make sure it is a letter
+  if (isalpha(playerSymbol)) {
+    // store playersymbol in game state
+    state->playerSymbol = playerSymbol;
+  }
+  else {
+    fprintf(stderr, "Error: Invalid player symbol %c received from server\n");
+    return;
   }
 }
