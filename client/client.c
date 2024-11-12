@@ -14,13 +14,13 @@
 #define MAX_STATUS_LENGTH 100
 
 /**************** global types ****************/
-// struct to hold necessary starting info for client to start game
-typedef struct client_start {
+// struct to hold necessary starting info for client to intitialize game
+typedef struct client_init {
   char* hostname;
   int port;
   char* playerName;
   bool isSpectator;
-} client_start_t;
+} client_init_t;
 
 // struct to hold current game state information
 typedef struct client_game_state {
@@ -30,6 +30,7 @@ typedef struct client_game_state {
   int goldRemaining;
   char* display;
   char* statusLine;
+  client_init_t* client;  
 } client_game_state_t;
 
 /************* function prototypes ************/
@@ -38,7 +39,7 @@ typedef struct client_game_state {
 // /******************* main ********************/
 // int main(int argc, char* argv[]) 
 // {
-//   client_start_t* client;
+//   client_init_t* client;
 //   client_game_state_t* state;
 
 //   initialize_client(client, unkwnonw, stderr, argv, argv);
@@ -61,7 +62,7 @@ typedef struct client_game_state {
  * Returns:
  *   True if initialization works.  False otherwise.
  */
-bool initialize_client(client_game_state_t* state, client_start_t* client, addr_t* serverAddress, FILE* logFP, int argc, char* argv[])
+bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* logFP, int argc, char* argv[])
 {
   // initialize logging module
   log_init(logFP); 
@@ -71,32 +72,22 @@ bool initialize_client(client_game_state_t* state, client_start_t* client, addr_
     return false;
   } 
 
-  // call parseArgs to fill in client_start info
-  parseArgs(client, argc, argv);
+  // call parseArgs to fill in client_init info
+  parseArgs(state->client, argc, argv);
 
   // create server address, max port numebr is 26, two digists plus one for a null char
-  if (!message_setAddr(client->hostname, argv[2], serverAddress)) {
+  if (!message_setAddr(state->client->hostname, argv[2], serverAddress)) {
     fprintf(stderr, "Error: Unable to set server address\n");
     return false;
   }
 
-  // send join message to server 
-  if (client->isSpectator) {
-    update_status_line(state, NULL);
-  }
-  else {
-    update_status_line(state, client->playerName);
-  }
-
-  // set up the status line
+  // initialize statusLine
   state->statusLine = malloc(MAX_STATUS_LENGTH * sizeof(char));
   if (state->statusLine == NULL) {
-    fprintf(stderr, "Error: Unabe to allocate memory for status line\n");
+    fprintf(stderr, "Error: Unable to allocate memory for status line.\n");
     return false;
   }
-  // make the status line empty at first
-  memset(state->statusLine, ' ', MAX_STATUS_LENGTH);
-
+  
   return true;
 }
 
@@ -105,6 +96,7 @@ bool initialize_client(client_game_state_t* state, client_start_t* client, addr_
  * parseArgs - Validates command line arguments.
  *
  * Caller provides:
+ *   client - struct that holds all info needed about client to initialize game
  *   argc - number of command line args
  *   argv - array of command line args
  *     argv[1] - hostname
@@ -113,7 +105,7 @@ bool initialize_client(client_game_state_t* state, client_start_t* client, addr_
  * Returns:
  *   nothing
  */
-void parseArgs(client_start_t* client, int argc, char* argv[])
+void parseArgs(client_init_t* client, int argc, char* argv[])
 {
   // validate command line length
   if (argc < 3) {
@@ -136,7 +128,7 @@ void parseArgs(client_start_t* client, int argc, char* argv[])
 
   // determine if player or spectator
   if (argc == 4) {
-    client->isSpectator = false;
+    client->isSpectator = false; // fourth arg indicates player                        
     client->playerName = argv[3];
     if (strlen(client->playerName) > MAX_NAME_LENGTH) {
       fprintf(stderr, "Error: Player name length may not exceed 50 characters\n");
@@ -145,7 +137,7 @@ void parseArgs(client_start_t* client, int argc, char* argv[])
   }
   else {
     client->isSpectator = true;
-    client->playerName = "";
+    client->playerName = NULL;
   }
 }
 
@@ -194,15 +186,16 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
  */
 static bool handle_server_message(void* arg, const addr_t from, const char* message)
 {
-  // do i have to initialize a new variable for this part? necessary? if i call it in main is it fine?
   client_game_state_t* state = arg;
 
   if (strncmp(message, "GRID", 4) == 0) {
     handle_message_grid(state, message);
   }
   else if (strncmp(message, "GOLD", 4) == 0) {
-
+    handle_gold_message(state, message);
   }
+  
+  return true;
 }
 
 /******************* handle_message_grid *****************/
@@ -272,13 +265,10 @@ static bool check_display_dimensions(int num_rows, int num_cols) {
  * Caller provides:
  *   state - game state struct containing all current info 
  *   message - message from server
- *   client - client info struct containing all the info needed to start game 
- *            on behalf of client
-
  * Returns:
  *   nothing
  */
-void handle_gold_message(client_game_state_t* state, char* message, client_start_t* client) 
+void handle_gold_message(client_game_state_t* state, char* message) 
 {
   // n - amount collected in pile
   // p - amount in purse
@@ -295,7 +285,7 @@ void handle_gold_message(client_game_state_t* state, char* message, client_start
   state->goldRemaining = r;
 
   // update status line
-  update_status_line(state, client);
+  update_status_line(state);
 }
 
 /******************* update_status_line *****************/
@@ -304,12 +294,10 @@ void handle_gold_message(client_game_state_t* state, char* message, client_start
  * 
  * Caller provides:
  *   state - game state struct containing all current info 
- *   client - client info struct containing all the info needed to start game 
- *            on behalf of client
  * Returns:
  *   nothing
  */
-void update_status_line(client_game_state_t* state, client_start_t* client) 
+void update_status_line(client_game_state_t* state) 
 {
   // check to make sure status line is initialized
   if (state->statusLine == NULL) {
@@ -318,17 +306,17 @@ void update_status_line(client_game_state_t* state, client_start_t* client)
   }
 
   if (state->purseGold >= 0 && state->goldRemaining >= 0) {
-    if (!client->isSpectator) {
+    if (!state->client->isSpectator) {
       // compose the status line for a player
       snprintf(state->statusLine, MAX_STATUS_LENGTH, 
       "Player %s has %d nuggets (%d nuggets unclaimed).",
-      client->playerName, state->purseGold, state->goldRemaining);
+      state->client->playerName, state->purseGold, state->goldRemaining);
     }
     else {
       // compose the status line for a spectator
       snprintf(state->statusLine, MAX_STATUS_LENGTH,
       "Spectator: %d nugget unclaimed. Play at %s %d",
-      state->goldRemaining, client->hostname, client->port);
+      state->goldRemaining, state->client->hostname, state->client->port);
     }
   }
 }
