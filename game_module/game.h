@@ -71,7 +71,7 @@ void game_updateState(player_t* player, char action);
  *   - xPos: the player's current x-coordinate on the map
  *   - yPos: the player's current y-coordinate on the map
  */
-void game_playerMove(char* currentVisibleMap, char moveType, int xPos, int yPos);
+void game_playerMove(addr_t playerAddress, game_t* game, char moveType);
 
 
 /**************** game_print ****************/

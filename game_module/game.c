@@ -38,6 +38,7 @@ typedef struct player {
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
+char getTile(int x, int y, player_t* player, int mapWidth, char* map);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -64,6 +65,67 @@ game_t* game_init(FILE* mapFile, int seed)
     game_print(game);
     
     return game;  // Return the initialized game struct
+}
+
+
+void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
+{
+
+    player_t* player = hashtable_find(game->players, message_stringAddr(playerAddress));
+    char* currentMap = game->map;
+    int mapWidth = game->mapWidth;
+    
+    switch (moveType) {
+        case 'h':
+            //move left
+            int x = player->xPosition - 1;
+            int y = player->yPosition;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+
+            break;
+        case 'l':
+            //move right
+            int x = player->xPosition + 1;
+            int y = player->yPosition;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'j':
+            //move down
+            int x = player->xPosition;
+            int y = player->yPosition - 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'k':
+            //move up
+            int x = player->xPosition;
+            int y = player->yPosition + 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'y':
+            //move diagonal up and left
+            int x = player->xPosition - 1;
+            int y = player->yPosition + 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'u':
+            //move diagonal up and right
+            int x = player->xPosition + 1;
+            int y = player->yPosition + 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'b':
+            //move diagonal down and left
+            int x = player->xPosition - 1;
+            int y = player->yPosition - 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+        case 'n':
+            //move diagonal down and right
+            int x = player->xPosition + 1;
+            int y = player->yPosition - 1;
+            char tile = getTile(x, y, player, mapWidth, currentMap);
+            break;
+    }
 }
 
 /**************** game_print ****************/
@@ -126,7 +188,6 @@ char* encodeMap(FILE* mapFile, game_t* game)
         }
 
         // Allocate enough memory for the existing map and new line
-        // Replace mem_realloc with realloc in loadMap function
         char* newMap = realloc(map, mapSize + lineLen + 1);
 
         if (newMap == NULL) {
@@ -185,5 +246,11 @@ void placeGold(game_t* game)
             }
         }
     }
+}
+
+char getTile(int x, int y, player_t* player, int mapWidth, char* map)
+{
+    int index = player->yPosition * mapWidth + x;
+    return map[index];
 }
 
