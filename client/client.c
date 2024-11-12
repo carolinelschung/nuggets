@@ -468,3 +468,46 @@ static void handle_display_message(client_game_state_t* state, char* message)
     fprintf(stderr, "Error: Failed to parse DISPLAY message from server\n");
   }
 }
+
+/******************* handle_client_input *****************/
+/*
+ * handle_client_input - handles client input, sends message thats appropriately
+ * formatted to the server
+ * 
+ * Caller provides:
+ *   arg - a pointer to the server's addr_t address 
+ * Notes:
+ *   messages to server should be formatted as "KEY k" where k in the client input
+ *   also based on handleInput function in miniclient.c
+ * Returns:
+ *   True if the loop should exit on EOF or fatal error, false otherwise.
+ */
+static bool handle_client_input(void* arg) 
+{
+  int inputCharacter; // int to hold client keystroke
+  char message[message_MaxBytes]; // buffer for holding client input
+  // use 'arg' to get the server address
+  addr_t* serverp = arg;
+  if (serverp == NULL) {  // defensive checks to ensure serverAddress is valid
+    fprintf(stderr, "handleInput called with arg=NULL");
+    return true;
+  }
+  if (!message_isAddr(*serverp)) {
+    fprintf(stderr, "handleInput called without a correspondent.");
+    return true;
+  }
+
+  // read one character from stdin
+  inputCharacter = getchar();
+  if (inputCharacter == EOF) { // check to make sure not EOF
+    return true; // if it is stop looping
+  } 
+
+  // create the message to server
+  snprintf(message, sizeof(message), "KEY %c", inputCharacter);
+
+  // send off the message!
+  message_send(*serverp, message);
+
+  return false; // keep the message loop going
+}
