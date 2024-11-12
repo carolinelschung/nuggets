@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include "ctype.h"
 #include "message.h"
 #include "log.h"
 #include <ncurses.h>
@@ -12,6 +13,8 @@
 // "Player A has 39 nuggets (211 nuggets unclaimed). GOLD received: 39"
 // but adding 40 characters as a buffer
 #define MAX_STATUS_LENGTH 100
+// 26 * (MAX_NAME_LENGTH + 20) + 20 chars for end of game header 
+#define MAX_QUIT_MESSAGE_LENGTH 1900
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
@@ -198,6 +201,12 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   else if (strncmp(message, "OK", 2) == 0) {
     handle_ok_message(state, message);
   }
+  else if (strncmp(message, "QUIT", 4) == 0) {
+    handle_quit_message(state, message);
+  }
+  else if (stncmp(message, "ERROR", 5) == 0) {
+    handle_error_message(state, message);
+  }
   
   return true;
 }
@@ -333,7 +342,7 @@ void update_status_line(client_game_state_t* state)
  * Caller provides:
  *   state - game state struct containing all current info
  *   message - message from server 
- * Note:
+ * Notes:
  *   message from server should be formatted as "OK L", where 'L' 
  *   is the player's symbol
  * Returns:
@@ -344,15 +353,68 @@ void handle_ok_message(client_game_state_t* state, const char* message)
   char playerSymbol;
 
   // parse the message for the player symbol
-  sscanf(message, "OK %c", playerSymbol);
+  if (sscanf(message, "OK %c", &playerSymbol) == 1) {
+    // check to make sure it is a letter
+    if (isalpha(playerSymbol)) {
+      // store playersymbol in game state
+      state->playerSymbol = playerSymbol;
+    }
+    else {
+      fprintf(stderr, "Error: Invalid player symbol %c received from server\n");
+      return;
+    }
+  }
+}
 
-  // check to make sure it is a letter
-  if (isalpha(playerSymbol)) {
-    // store playersymbol in game state
-    state->playerSymbol = playerSymbol;
+/******************* handle_quit_message *****************/
+/*
+ * handle_quit_message - handles quit messages printing the provided explanantion
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info
+ *   message - message from server 
+ * Notes:
+ *   message from server should be formatted as "QUIT explanantion", where the explanation 
+ *   is a string to be printed
+ * Returns:
+ *   nothing
+ */
+static void handle_quit_message(client_game_state_t* state, char* message)
+{
+  // buffer for holding the explanation from server 
+  char explanation[MAX_QUIT_MESSAGE_LENGTH];
+
+  // parse the message for the explanation
+  if (sscanf(message, "QUIT %[^\n]", explanation) == 1) {
+    // print the explanation
+    printf(explanation);
+
+    // cleanup time!
+    free(state->display);
+    free(state->statusLine);
+    free(state->client);
+
+    exit(0);  // exit with zero code to show success!
   }
   else {
-    fprintf(stderr, "Error: Invalid player symbol %c received from server\n");
-    return;
+    fprintf(stderr, "Error: Failed to parse QUIT message from server.\n");
   }
+}
+
+/******************* handle_error_message *****************/
+/*
+ * handle_error_message - handles error messages by updating the status line for the client
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info
+ *   message - message from server 
+ * Notes:
+ *   message from server should be formatted as "ERROR explanantion", where the explanation 
+ *   is a string to be printed
+ * Returns:
+ *   nothing
+ */
+static void handle_error_message(client_game_state_t* client, char* message)
+{
+  
 }
