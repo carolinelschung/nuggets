@@ -43,16 +43,48 @@ typedef struct client_game_state {
 /************* function prototypes ************/
 
 
-// /******************* main ********************/
-// int main(int argc, char* argv[]) 
-// {
-//   client_init_t* client;
-//   client_game_state_t* state;
+/******************* main ********************/
+int main(int argc, char* argv[]) 
+{
+  FILE* logFP = stderr; // log file for error messages
 
-//   initialize_client(client, unkwnonw, stderr, argv, argv);
+  // initialize game state
+  client_game_state_t state;
+  state.client = malloc(sizeof(client_init_t));
+  if (state.client == NULL) {
+    fprintf(stderr, "Error: Unable to allocate memory for client initialization structure");
+    return 1;
+  }
 
-//   initialize_display(state, )
-// }
+  // initialize client
+  addr_t serverAddress;
+  if (!initialize_client(&state, &serverAddress, logFP, argc, argv)) {
+    fprintf(stderr, "Error: CLient initialization failed\n");
+    free(state.client);
+    return 1;
+  }
+
+  // start ncurses for display 
+  initscr();  // Start ncurses mode
+  cbreak();   // Disable line buffering
+  noecho();   // Don't echo user input
+  keypad(stdscr, TRUE);  // Enable special keys
+
+  // start the message loop
+  bool ok = message_loop(&serverAddress, 0, NULL, handle_client_input, handle_server_message);
+
+  // finish ncurses
+  endwin();
+  message_done();
+  log_done();
+
+  // clean up dyanmically allocated memory
+  free(state.client);
+  free(state.display);
+  free(state.statusLine);
+
+  return ok ? 0 : 1;  // return based on result of message loop
+}
 
 /******************* initialize_client *****************/
 /*
@@ -74,7 +106,7 @@ bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* 
   // initialize logging module
   log_init(logFP); 
 
-  if (message_init(logFP) == 0) {
+  if (message_init(logFP) == 0) { // check for failure to initialize
     fprintf(stderr, "Error: Failed to initialize message module\n");
     return false;
   } 
