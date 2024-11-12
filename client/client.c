@@ -1,11 +1,22 @@
+/* 
+ * client.c - a client using the messaging module
+ *
+ * client.c handles the client side implementation of the nuggets game. 
+ * It initializes the client as either player or spectator, if they are a player
+ * stdin is collected and sent to the server and then the server sends back a message containing relavant
+ * info to update the client's screen.  
+ * 
+ * Caroline Chung - November 12, 2024
+ */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ncurses.h>
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
-#include <ncurses.h>
 
 #define MAX_NAME_LENGTH 50 // max number of chars in playerName
 #define GOLD_TOTAL 250 // total amount of gold in the game
@@ -41,13 +52,13 @@ static bool handle_client_input(void* arg);
 /* moduler helper functions called by handle_server_message */
 void handle_grid_message(client_game_state_t* state, const char* message);
 static bool check_display_dimensions(int num_rows, int num_cols); 
-void handle_gold_message(client_game_state_t* state, char* message);
-void handle_gold_message(client_game_state_t* state, char* message);
+void handle_gold_message(client_game_state_t* state, const char* message);
+void handle_gold_message(client_game_state_t* state, const char* message);
 void update_status_line(client_game_state_t* state);
 void handle_ok_message(client_game_state_t* state, const char* message);
-static void handle_quit_message(client_game_state_t* state, char* message);
-static void handle_error_message(client_game_state_t* state, char* message);
-static void handle_display_message(client_game_state_t* state, char* message);
+static void handle_quit_message(client_game_state_t* state, const char* message);
+static void handle_error_message(client_game_state_t* state, const char* message);
+static void handle_display_message(client_game_state_t* state, const char* message);
 /************************************************** */
 
 /******************* main ********************/
@@ -66,7 +77,7 @@ int main(int argc, char* argv[])
   // initialize client
   addr_t serverAddress;
   if (!initialize_client(&state, &serverAddress, logFP, argc, argv)) {
-    fprintf(stderr, "Error: CLient initialization failed\n");
+    fprintf(stderr, "Error: Client initialization failed\n");
     free(state.client);
     return 1;
   }
@@ -163,7 +174,7 @@ void parseArgs(client_init_t* client, int argc, char* argv[])
   client->hostname = argv[1];  
 
   // check to make sure port is number larger than 0
-  if (argv[2] > 0) {
+  if (atoi(argv[2]) > 0) {
     client->port = atoi(argv[2]);
     printf("Port %d was connected to.", client->port); //
   }
@@ -332,7 +343,7 @@ static bool check_display_dimensions(int num_rows, int num_cols)
  * Returns:
  *   nothing
  */
-void handle_gold_message(client_game_state_t* state, char* message) 
+void handle_gold_message(client_game_state_t* state, const char* message) 
 {
   // n - amount collected in pile
   // p - amount in purse
@@ -342,7 +353,7 @@ void handle_gold_message(client_game_state_t* state, char* message)
   int r;
 
   // read the message for GOLD n p r format
-  sscanf(message, "GOLD %d %d %d", n, p, r);
+  sscanf(message, "GOLD %d %d %d", &n, &p, &r);
 
   // update game state appropriately
   state->purseGold = p;
@@ -411,7 +422,7 @@ void handle_ok_message(client_game_state_t* state, const char* message)
       state->playerSymbol = playerSymbol;
     }
     else {
-      fprintf(stderr, "Error: Invalid player symbol %c received from server\n");
+      fprintf(stderr, "Error: Invalid player symbol %c received from server\n", playerSymbol);
       return;
     }
   }
@@ -430,7 +441,7 @@ void handle_ok_message(client_game_state_t* state, const char* message)
  * Returns:
  *   nothing
  */
-static void handle_quit_message(client_game_state_t* state, char* message)
+static void handle_quit_message(client_game_state_t* state, const char* message)
 {
   // buffer for holding the explanation from server 
   char explanation[message_MaxBytes];
@@ -438,7 +449,7 @@ static void handle_quit_message(client_game_state_t* state, char* message)
   // parse the message for the explanation
   if (sscanf(message, "QUIT %[^\n]", explanation) == 1) {
     // print the explanation
-    printf(explanation);
+    printf("%s", explanation);
 
     // cleanup time!
     free(state->display);
@@ -466,7 +477,7 @@ static void handle_quit_message(client_game_state_t* state, char* message)
  * Returns:
  *   nothing
  */
-static void handle_error_message(client_game_state_t* state, char* message)
+static void handle_error_message(client_game_state_t* state, const char* message)
 {
   // buffer for holding the explanation from server 
   char explanation[message_MaxBytes];
@@ -495,13 +506,13 @@ static void handle_error_message(client_game_state_t* state, char* message)
  * Returns:
  *   nothing
  */
-static void handle_display_message(client_game_state_t* state, char* message)
+static void handle_display_message(client_game_state_t* state, const char* message)
 {
   // Parse the message to extract the display content after "DISPLAY "
   if (sscanf(message, "DISPLAY %[^\n]", state->display) == 1) {
     clear(); // clear the outdated display 
-    mvprintw(1, 0, state->statusLine); 
-    mvprintw(2, 0, state->display);
+    mvprintw(1, 0, "%s", state->statusLine); 
+    mvprintw(2, 0, "%s", state->display);
     refresh();  // refresh the screen to throw up the most current display
   }
   else {
