@@ -19,7 +19,6 @@
 #include "log.h"
 
 #define MAX_NAME_LENGTH 50 // max number of chars in playerName
-#define GOLD_TOTAL 250 // total amount of gold in the game
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
