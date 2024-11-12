@@ -11,10 +11,13 @@
 #define GOLD_TOTAL 250 // total amount of gold in the game
 // based on line given in reguirements spec, 
 // "Player A has 39 nuggets (211 nuggets unclaimed). GOLD received: 39"
-// but adding 40 characters as a buffer
-#define MAX_STATUS_LENGTH 100
+// but adding 200 characters as a buffer to acocunt for potential explanantion
+#define MAX_STATUS_LENGTH 260
 // 26 * (MAX_NAME_LENGTH + 20) + 20 chars for end of game header 
 #define MAX_QUIT_MESSAGE_LENGTH 1900
+// the implementation spec said that the error message would be short so i chose
+// an abritrary number
+#define MAX_ERROR_MESSAGE_LENGTH 200
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
@@ -180,11 +183,13 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
  * handle_server_message - handles server messages, calling relevant
  * helper functions as necessary
  * 
- *
  * Caller provides:
  *   arg - struct that holds current game state
  *   from - number of rows 
  *   message - number of columns
+ * Notes:
+ *   Server messages are expected to start with "OK", "GRID", "DISPLAY",
+ *   "GOLD", "QUIT", or "ERROR"
  * Returns:
  *   True if message handling works.  False otherwise.
  */
@@ -204,8 +209,11 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   else if (strncmp(message, "QUIT", 4) == 0) {
     handle_quit_message(state, message);
   }
-  else if (stncmp(message, "ERROR", 5) == 0) {
+  else if (strncmp(message, "ERROR", 5) == 0) {
     handle_error_message(state, message);
+  }
+  else if (strncmp(message, "DISPLAY", 7) == 0) {
+
   }
   
   return true;
@@ -404,17 +412,47 @@ static void handle_quit_message(client_game_state_t* state, char* message)
 /******************* handle_error_message *****************/
 /*
  * handle_error_message - handles error messages by updating the status line for the client
+ * with the explanantion parsed from the server message
  * 
  * Caller provides:
  *   state - game state struct containing all current info
  *   message - message from server 
  * Notes:
  *   message from server should be formatted as "ERROR explanantion", where the explanation 
- *   is a string to be printed
+ *   is a string to be added to the status line.
  * Returns:
  *   nothing
  */
-static void handle_error_message(client_game_state_t* client, char* message)
+static void handle_error_message(client_game_state_t* state, char* message)
 {
-  
+  // buffer for holding the explanation from server 
+  char explanation[MAX_ERROR_MESSAGE_LENGTH];
+
+  // parse the message for the explanation
+  if (sscanf(message, "ERROR %[^\n]", explanation) == 1) {
+    // print the explanation
+    snprintf(state->statusLine, MAX_STATUS_LENGTH, "Error: %s", explanation);
+  }
+  else {
+    fprintf(stderr, "Error: Failed to parse ERROR message from server.\n");
+  }
+}
+
+/******************* handle_display_message *****************/
+/*
+ * handle_display_message - handles DISPLAY messages by printing the display string provided by 
+ * the server
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info
+ *   message - message from server 
+ * Notes:
+ *   message from server should be formatted as "DISPLAY explanation", where the explanation 
+ *   is a string to be printed so the client can see on their end.
+ * Returns:
+ *   nothing
+ */
+static void handle_display_message(client_game_state_t* state, char* message)
+{
+  char* explanatio
 }
