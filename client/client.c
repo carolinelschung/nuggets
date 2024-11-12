@@ -26,7 +26,7 @@ typedef struct client_start {
 typedef struct client_game_state {
   int num_rows;
   int num_cols;
-  int goldCollected;
+  int purseGold;
   int goldRemaining;
   char* display;
   char* statusLine;
@@ -82,13 +82,10 @@ bool initialize_client(client_game_state_t* state, client_start_t* client, addr_
 
   // send join message to server 
   if (client->isSpectator) {
-    message_send(*serverAddress, "SPECTATE");
+    update_status_line(state, NULL);
   }
   else {
-    // alot space for MAX_NAME_LENGTH + 4 chars (play) + 1 space + 1 null char
-    char playMessage[MAX_NAME_LENGTH + 6];
-    snprintf(playMessage, sizeof(playMessage), "PLAY %s", client->playerName);
-    message_send(*serverAddress, playMessage);
+    update_status_line(state, client->playerName);
   }
 
   // set up the status line
@@ -197,12 +194,14 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
  */
 static bool handle_server_message(void* arg, const addr_t from, const char* message)
 {
-  
   // do i have to initialize a new variable for this part? necessary? if i call it in main is it fine?
   client_game_state_t* state = arg;
 
   if (strncmp(message, "GRID", 4) == 0) {
     handle_message_grid(state, message);
+  }
+  else if (strncmp(message, "GOLD", 4) == 0) {
+
   }
 }
 
@@ -214,11 +213,11 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
  * 
  * Caller provides:
  *   state - game state struct containing all current info 
- *   message - number of columns
+ *   message - message from server
  * Returns:
- *   True if message handling works.  False otherwise.
+ *   nothing
  */
-static bool handle_message_grid(client_game_state_t* state, const char* message)
+void handle_message_grid(client_game_state_t* state, const char* message)
 {
   int rows;
   int cols; 
@@ -249,9 +248,9 @@ static bool handle_message_grid(client_game_state_t* state, const char* message)
  * Returns:
  *   True if display is sufficiently large.  False otherwise.
  */
-bool check_display_dimensions(int num_rows, int num_cols) {
-  int max_rows;
-  int max_cols;
+static bool check_display_dimensions(int num_rows, int num_cols) {
+  int max_rows; // the number of rows the display could show
+  int max_cols; // the number of columns the display could show
 
   // get curr display size
   getmaxyx(stdscr, max_rows, max_cols); 
@@ -262,4 +261,74 @@ bool check_display_dimensions(int num_rows, int num_cols) {
   }
 
   return true;
+}
+
+/******************* handle_gold_message *****************/
+/*
+ * handle_gold_message - reads the relevant message from server, 
+ * parsing message for n (amount of gold collected in pile), p 
+ * (amount of gold in purse), and r (amount of gold remaining) 
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info 
+ *   message - message from server
+ *   client - client info struct containing all the info needed to start game 
+ *            on behalf of client
+
+ * Returns:
+ *   nothing
+ */
+void handle_gold_message(client_game_state_t* state, char* message, client_start_t* client) 
+{
+  // n - amount collected in pile
+  // p - amount in purse
+  // r - gold remaining in game
+  int n; 
+  int p;
+  int r;
+
+  // read the message for GOLD n p r format
+  sscanf(message, "GOLD %d %d %d", n, p, r);
+
+  // update game state appropriately
+  state->purseGold = p;
+  state->goldRemaining = r;
+
+  // update status line
+  update_status_line(state, client);
+}
+
+/******************* update_status_line *****************/
+/*
+ * update_status_line - updates the status line to have the most current data from the server
+ * 
+ * Caller provides:
+ *   state - game state struct containing all current info 
+ *   client - client info struct containing all the info needed to start game 
+ *            on behalf of client
+ * Returns:
+ *   nothing
+ */
+void update_status_line(client_game_state_t* state, client_start_t* client) 
+{
+  // check to make sure status line is initialized
+  if (state->statusLine == NULL) {
+    fprintf(stderr, "Error: Status line is not initialized.\n");
+    return;
+  }
+
+  if (state->purseGold >= 0 && state->goldRemaining >= 0) {
+    if (!client->isSpectator) {
+      // compose the status line for a player
+      snprintf(state->statusLine, MAX_STATUS_LENGTH, 
+      "Player %s has %d nuggets (%d nuggets unclaimed).",
+      client->playerName, state->purseGold, state->goldRemaining);
+    }
+    else {
+      // compose the status line for a spectator
+      snprintf(state->statusLine, MAX_STATUS_LENGTH,
+      "Spectator: %d nugget unclaimed. Play at %s %d",
+      state->goldRemaining, client->hostname, client->port);
+    }
+  }
 }
