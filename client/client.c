@@ -213,7 +213,10 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
     handle_error_message(state, message);
   }
   else if (strncmp(message, "DISPLAY", 7) == 0) {
-
+    handle_display_message(state, message);
+  }
+  else {
+    return false;
   }
   
   return true;
@@ -390,7 +393,7 @@ void handle_ok_message(client_game_state_t* state, const char* message)
 static void handle_quit_message(client_game_state_t* state, char* message)
 {
   // buffer for holding the explanation from server 
-  char explanation[MAX_QUIT_MESSAGE_LENGTH];
+  char explanation[message_MaxBytes];
 
   // parse the message for the explanation
   if (sscanf(message, "QUIT %[^\n]", explanation) == 1) {
@@ -426,7 +429,7 @@ static void handle_quit_message(client_game_state_t* state, char* message)
 static void handle_error_message(client_game_state_t* state, char* message)
 {
   // buffer for holding the explanation from server 
-  char explanation[MAX_ERROR_MESSAGE_LENGTH];
+  char explanation[message_MaxBytes];
 
   // parse the message for the explanation
   if (sscanf(message, "ERROR %[^\n]", explanation) == 1) {
@@ -454,5 +457,14 @@ static void handle_error_message(client_game_state_t* state, char* message)
  */
 static void handle_display_message(client_game_state_t* state, char* message)
 {
-  char* explanatio
+  // Parse the message to extract the display content after "DISPLAY "
+  if (sscanf(message, "DISPLAY %[^\n]", state->display) == 1) {
+    clear(); // clear the outdated display 
+    mvprintw(1, 0, state->statusLine); 
+    mvprintw(2, 0, state->display);
+    refresh();  // refresh the screen to throw up the most current display
+  }
+  else {
+    fprintf(stderr, "Error: Failed to parse DISPLAY message from server\n");
+  }
 }
