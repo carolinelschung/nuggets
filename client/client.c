@@ -32,7 +32,23 @@ typedef struct client_game_state {
 } client_game_state_t;
 
 /************* function prototypes ************/
+bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* logFP, int argc, char* argv[]);
+void parseArgs(client_init_t* client, int argc, char* argv[]);
+bool initialize_display(client_game_state_t* state, int num_rows, int num_cols); 
+static bool handle_server_message(void* arg, const addr_t from, const char* message);
+static bool handle_client_input(void* arg);
 
+/* moduler helper functions called by handle_server_message */
+void handle_grid_message(client_game_state_t* state, const char* message);
+static bool check_display_dimensions(int num_rows, int num_cols); 
+void handle_gold_message(client_game_state_t* state, char* message);
+void handle_gold_message(client_game_state_t* state, char* message);
+void update_status_line(client_game_state_t* state);
+void handle_ok_message(client_game_state_t* state, const char* message);
+static void handle_quit_message(client_game_state_t* state, char* message);
+static void handle_error_message(client_game_state_t* state, char* message);
+static void handle_display_message(client_game_state_t* state, char* message);
+/************************************************** */
 
 /******************* main ********************/
 int main(int argc, char* argv[]) 
@@ -221,7 +237,7 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   client_game_state_t* state = arg;
 
   if (strncmp(message, "GRID", 4) == 0) {
-    handle_message_grid(state, message);
+    handle_grid_message(state, message);
   }
   else if (strncmp(message, "GOLD", 4) == 0) {
     handle_gold_message(state, message);
@@ -245,9 +261,9 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   return true;
 }
 
-/******************* handle_message_grid *****************/
+/******************* handle_grid_message *****************/
 /*
- * handle_message_grid - handles "GRID" server messages, updating client game state
+ * handle_grid_message - handles "GRID" server messages, updating client game state
  * and checking that the display is sufficiently large using helper function called
  * check_display_dimensions.
  * 
@@ -257,7 +273,7 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
  * Returns:
  *   nothing
  */
-void handle_message_grid(client_game_state_t* state, const char* message)
+void handle_grid_message(client_game_state_t* state, const char* message)
 {
   int rows;
   int cols; 
@@ -288,7 +304,8 @@ void handle_message_grid(client_game_state_t* state, const char* message)
  * Returns:
  *   True if display is sufficiently large.  False otherwise.
  */
-static bool check_display_dimensions(int num_rows, int num_cols) {
+static bool check_display_dimensions(int num_rows, int num_cols) 
+{
   int max_rows; // the number of rows the display could show
   int max_cols; // the number of columns the display could show
 
