@@ -38,7 +38,8 @@ typedef struct player {
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
-char getTile(int x, int y, player_t* player, int mapWidth, char* map);
+int getIndex(int x, int y, int mapWidth);
+bool validateAndMove(char tile, char* map, char* mapWithNoPlayers, int mapWidth, player_t* player, int proposedX, int proposedY);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -52,6 +53,7 @@ game_t* game_init(FILE* mapFile, int seed)
     }
 
     game->map = encodeMap(mapFile, game);
+    game->mapWithNoPlayers = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
@@ -72,7 +74,7 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
 {
 
     player_t* player = hashtable_find(game->players, message_stringAddr(playerAddress));
-    char* currentMap = game->map;
+    char* map = game->map;
     int mapWidth = game->mapWidth;
     
     switch (moveType) {
@@ -80,50 +82,57 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
             //move left
             int x = player->xPosition - 1;
             int y = player->yPosition;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
-
+            int oldIndex = getIndex(player->xPosition, y, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'l':
             //move right
             int x = player->xPosition + 1;
             int y = player->yPosition;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(player->xPosition, y, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'j':
             //move down
             int x = player->xPosition;
             int y = player->yPosition - 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(x, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'k':
             //move up
             int x = player->xPosition;
             int y = player->yPosition + 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(x, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'y':
             //move diagonal up and left
             int x = player->xPosition - 1;
             int y = player->yPosition + 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'u':
             //move diagonal up and right
             int x = player->xPosition + 1;
             int y = player->yPosition + 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'b':
             //move diagonal down and left
             int x = player->xPosition - 1;
             int y = player->yPosition - 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
         case 'n':
             //move diagonal down and right
             int x = player->xPosition + 1;
             int y = player->yPosition - 1;
-            char tile = getTile(x, y, player, mapWidth, currentMap);
+            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
+            int newIndex = getIndex(x, y, mapWidth);
             break;
     }
 }
@@ -248,9 +257,48 @@ void placeGold(game_t* game)
     }
 }
 
-char getTile(int x, int y, player_t* player, int mapWidth, char* map)
+int getIndex(int x, int y, int mapWidth)
 {
-    int index = player->yPosition * mapWidth + x;
-    return map[index];
+    return y * mapWidth + x;
 }
+
+bool validateAndMove(char tile, char* map, char* mapWithNoPlayers, int mapWidth, player_t* player, int proposedX, int proposedY) 
+{
+
+    int currentIndex = player->yPosition * mapWidth + player->xPosition;
+    char currentTilePlayerIsOn = mapWithNoPlayers[currentIndex];
+    int proposedIndex = proposedY * mapWidth + proposedX;
+    char proposedTile = map[proposedIndex];
+
+    if (proposedTile != '.' || proposedTile != '#' || proposedTile != '*')
+    {
+        return false;
+    }
+
+    map[currentIndex] = currentTilePlayerIsOn;
+
+    if (map[proposedIndex] == '*') {
+        
+    }
+
+
+    map[proposedIndex] = '@';
+
+    player->xPosition = proposedX;
+    player->yPosition = proposedY;
+
+    
+
+
+
+    return true;
+}
+
+
+/*  solid rock - interstitial space outside rooms
+- a horizontal boundary
+| a vertical boundary
++ a corner boundary
+. an empty room spot
+# an empty passage spot*/
 

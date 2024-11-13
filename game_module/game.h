@@ -27,12 +27,15 @@
 typedef struct player player_t;
 typedef struct game {
     char* map;
+    char* mapWithNoPlayers;
     int port;
     int mapHeight;
     int mapWidth;
     int encodedMapLength;
     hashtable_t* players;
+    hashtable_t* goldPileAmounts;
     player_t* activePlayers[MaxPlayers]; // 26 max players
+    int activePlayersCount;
     int goldRemaining;
 } game_t;
 
