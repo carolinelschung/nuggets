@@ -189,8 +189,8 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
   state->num_cols = num_cols;
   state->num_rows = num_rows;
 
-  // dynamically allocate memory for the display based on the grid size
-  state->display = malloc(num_cols * num_rows * sizeof(char));
+  // dynamically allocate memory for the display based on the max message size 
+  state->display = malloc(message_MaxBytes * sizeof(char));
   if (state->display == NULL) { // check for mem alloc failure
     fprintf(stderr, "Error: Unable to allocate memory for grid display\n");
     return false;
