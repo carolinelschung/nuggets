@@ -39,7 +39,8 @@ typedef struct player {
 char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
 int getIndex(int x, int y, int mapWidth);
-bool validateAndMove(char tile, char* map, char* mapWithNoPlayers, int mapWidth, player_t* player, int proposedX, int proposedY);
+bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
+static void delete_item(void* item);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -82,57 +83,49 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
             //move left
             int x = player->xPosition - 1;
             int y = player->yPosition;
-            int oldIndex = getIndex(player->xPosition, y, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'l':
             //move right
             int x = player->xPosition + 1;
             int y = player->yPosition;
-            int oldIndex = getIndex(player->xPosition, y, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'j':
             //move down
             int x = player->xPosition;
             int y = player->yPosition - 1;
-            int oldIndex = getIndex(x, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'k':
             //move up
             int x = player->xPosition;
             int y = player->yPosition + 1;
-            int oldIndex = getIndex(x, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'y':
             //move diagonal up and left
             int x = player->xPosition - 1;
             int y = player->yPosition + 1;
-            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'u':
             //move diagonal up and right
             int x = player->xPosition + 1;
             int y = player->yPosition + 1;
-            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'b':
             //move diagonal down and left
             int x = player->xPosition - 1;
             int y = player->yPosition - 1;
-            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
         case 'n':
             //move diagonal down and right
             int x = player->xPosition + 1;
             int y = player->yPosition - 1;
-            int oldIndex = getIndex(player->xPosition, player->yPosition, mapWidth);
-            int newIndex = getIndex(x, y, mapWidth);
+            bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
             break;
     }
 }
@@ -150,7 +143,8 @@ void game_print(const game_t* game)
     printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
     printf("Encoded Map Length: %d\n", game->encodedMapLength);
     printf("Gold Remaining: %d\n", game->goldRemaining);
-
+    
+    int goldExample = hashtable_find(game->goldPileAmounts, 10);
 
     for (int i = 0; i < game->encodedMapLength; i++) {
         putchar(game->map[i]);
@@ -225,7 +219,9 @@ char* encodeMap(FILE* mapFile, game_t* game)
 
 
 /**************** placeGold ****************/
-/* Places gold randomly on map for a given game */
+/* Places gold randomly on map for a given game
+ * Init and populate goldPileAmount Hashtable
+ */
 void placeGold(game_t* game)
 {
     if (game == NULL || game->map == NULL) {
@@ -238,6 +234,8 @@ void placeGold(game_t* game)
     int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
     int goldRemaining = GoldTotal;
 
+    game->goldPileAmounts = hashtable_new(numPiles); // initialize goldPileAmounts to have numPiles slots
+
     for (int i = 0; i < numPiles; i++) 
     {
         int maxPileSize = goldRemaining - (numPiles - i - 1); //Makes sure enough gold
@@ -245,12 +243,12 @@ void placeGold(game_t* game)
 
         goldRemaining -= pileSize;
 
-
         bool spotFound = false;
         while (!spotFound) {
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
                 game->map[randIndex] = '*';
+                hashtable_insert(game->goldPileAmounts, randIndex, pileSize);
                 spotFound = true;
             }
         }
@@ -262,43 +260,33 @@ int getIndex(int x, int y, int mapWidth)
     return y * mapWidth + x;
 }
 
-bool validateAndMove(char tile, char* map, char* mapWithNoPlayers, int mapWidth, player_t* player, int proposedX, int proposedY) 
+bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
 {
 
-    int currentIndex = player->yPosition * mapWidth + player->xPosition;
-    char currentTilePlayerIsOn = mapWithNoPlayers[currentIndex];
-    int proposedIndex = proposedY * mapWidth + proposedX;
-    char proposedTile = map[proposedIndex];
+    int currentIndex = player->yPosition * game->mapWidth + player->xPosition;
+    char currentTilePlayerIsOn = game->mapWithNoPlayers[currentIndex];
+    int proposedIndex = proposedY * game->mapWidth + proposedX;
+    char proposedTile = game->map[proposedIndex];
 
     if (proposedTile != '.' || proposedTile != '#' || proposedTile != '*')
     {
         return false;
     }
 
-    map[currentIndex] = currentTilePlayerIsOn;
-
-    if (map[proposedIndex] == '*') {
-        
+    game->map[currentIndex] = currentTilePlayerIsOn; // sets the tile to be what is "under" player
+    
+    if (game->map[proposedIndex] == '*') {
+        int goldAmountPlayerFound = hashtable_find(game->goldPileAmounts, proposedIndex);
+        if (goldAmountPlayerFound != NULL) {
+            player->goldCaptured += goldAmountPlayerFound;
+            game->goldRemaining -= goldAmountPlayerFound;
+        }
     }
 
-
-    map[proposedIndex] = '@';
+    game->map[proposedIndex] = '@'; // change new tile to player character
 
     player->xPosition = proposedX;
     player->yPosition = proposedY;
 
-    
-
-
-
     return true;
 }
-
-
-/*  solid rock - interstitial space outside rooms
-- a horizontal boundary
-| a vertical boundary
-+ a corner boundary
-. an empty room spot
-# an empty passage spot*/
-
