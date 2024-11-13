@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
-#include <ncurses.h>
+#include <curses.h>
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
@@ -52,7 +52,6 @@ static bool handle_client_input(void* arg);
 void handle_grid_message(client_game_state_t* state, const char* message);
 static bool check_display_dimensions(int num_rows, int num_cols); 
 void handle_gold_message(client_game_state_t* state, const char* message);
-void handle_gold_message(client_game_state_t* state, const char* message);
 void update_status_line(client_game_state_t* state);
 void handle_ok_message(client_game_state_t* state, const char* message);
 static void handle_quit_message(client_game_state_t* state, const char* message);
@@ -88,7 +87,17 @@ int main(int argc, char* argv[])
   keypad(stdscr, TRUE);  // Enable special keys
 
   // start the message loop
+  //DEBUG
+  FILE *debugLog = fopen("debug.txt", "w");
+  if (debugLog) {
+    fprintf(debugLog, "Starting message loop...\n");
+  }
   bool ok = message_loop(&serverAddress, 0, NULL, handle_client_input, handle_server_message);
+  //DEBUG
+  if (debugLog) {
+    fprintf(debugLog, "ending message loop...\n");
+    fclose(debugLog);
+  }
 
   // finish ncurses
   endwin();
@@ -149,7 +158,7 @@ void parseArgs(client_init_t* client, int argc, char* argv[])
 {
   // validate command line length
   if (argc < 3) {
-    fprintf(stderr, "Usage: ./client hostname port <username> (username is optional)");
+    fprintf(stderr, "Usage: ./client hostname port <unique username> (username is optional)\n");
     exit(1); // invalid command line arguments
   }
 
@@ -206,26 +215,31 @@ bool initialize_display(client_game_state_t* state, int num_rows, int num_cols)
 static bool handle_server_message(void* arg, const addr_t from, const char* message)
 {
   client_game_state_t* state = arg;
+  // DEBUG
+  fprintf(stderr, "Received message: %s\n", message);
 
   if (strncmp(message, "GRID", 4) == 0) {
     handle_grid_message(state, message);
+    return false;
   }
   else if (strncmp(message, "GOLD", 4) == 0) {
     handle_gold_message(state, message);
+    return false;
   }
   else if (strncmp(message, "OK", 2) == 0) {
     handle_ok_message(state, message);
+    return false;
   }
   else if (strncmp(message, "QUIT", 4) == 0) {
     handle_quit_message(state, message);
+    return true;
   }
   else if (strncmp(message, "ERROR", 5) == 0) {
     handle_error_message(state, message);
+    return false;
   }
   else if (strncmp(message, "DISPLAY", 7) == 0) {
     handle_display_message(state, message);
-  }
-  else {
     return false;
   }
   
@@ -240,7 +254,7 @@ void handle_grid_message(client_game_state_t* state, const char* message)
   int cols; 
 
   // update game state to have most curr rows and cols 
-  if (sscanf(message, "GRID %d %d", &rows, &cols) == 1) {
+  if (sscanf(message, "GRID %d %d", &rows, &cols) == 2) {
     state->num_cols = cols;
     state->num_rows = rows;
 
@@ -288,7 +302,7 @@ void handle_gold_message(client_game_state_t* state, const char* message)
   int r;
 
   // read the message for GOLD n p r format
-  if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 1) {
+  if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
     // update game state appropriately
     state->purseGold = p;
     state->goldRemaining = r;
@@ -398,7 +412,6 @@ static void handle_display_message(client_game_state_t* state, const char* messa
     clear(); // clear the outdated display 
     mvprintw(1, 0, "%s", state->statusLine); 
     mvprintw(2, 0, "%s", state->display);
-    refresh();  // refresh the screen to throw up the most current display
   }
   else {
     fprintf(stderr, "Error: Failed to parse DISPLAY message from server\n");
