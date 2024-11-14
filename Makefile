@@ -9,8 +9,8 @@ LIBS = libcs50/libcs50.a support/support.a
 EXE = server
 
 # Source files
-SRCS = server.c game_module/game.c
-OBJS = server.o game.o
+SRCS = server.c game_module/game.c map_module/map.c
+OBJS = server.o game.o map.o
 
 # Build the executable
 $(EXE): $(OBJS) $(LIBS)
@@ -31,6 +31,10 @@ server.o: server.c game_module/game.h server.h
 # Compile game.c
 game.o: game_module/game.c game_module/game.h
 	$(CC) $(CFLAGS) -c game_module/game.c -o game.o
+
+# Compile map.c
+map.o: map_module/map.c map_module/map.h
+	$(CC) $(CFLAGS) -c map_module/map.c -o map.o
 
 # Clean up generated files
 clean:

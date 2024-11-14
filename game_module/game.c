@@ -16,6 +16,7 @@
 #include "../libcs50/mem.h"
 #include "game.h"
 #include "../support/message.h"
+#include "../map_module/map.h"
 
 #define GoldTotal 250
 #define GoldMinNumPiles 10
@@ -84,6 +85,7 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
             int x = player->xPosition - 1;
             int y = player->yPosition;
             bool success = validateAndMove(game->map, game->mapWithNoPlayers, x, y); 
+            
             break;
         case 'l':
             //move right
@@ -273,6 +275,10 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         return false;
     }
 
+    // BEGIN MAKING THE PLAYER MOVE
+
+    //TODO: Add visibility implemenation
+
     game->map[currentIndex] = currentTilePlayerIsOn; // sets the tile to be what is "under" player
     
     if (game->map[proposedIndex] == '*') {
@@ -280,6 +286,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         if (goldAmountPlayerFound != NULL) {
             player->goldCaptured += goldAmountPlayerFound;
             game->goldRemaining -= goldAmountPlayerFound;
+            game->map[proposedIndex] = '.';
         }
     }
 
@@ -287,6 +294,13 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
 
     player->xPosition = proposedX;
     player->yPosition = proposedY;
+
+    char* visibleMap = mem_malloc(sizeof(char)*strlen(game->map));
+    map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
+
+    map_merge(player->playerMap, visibleMap);
+
+    mem_free(visibleMap);
 
     return true;
 }
