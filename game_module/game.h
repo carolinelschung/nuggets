@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "../libcs50/hashtable.h"
+#include "../support/message.h"
 
 
 #define MaxPlayers 26
@@ -84,6 +85,17 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType);
  *   - game object to print
  */
 void game_print(const game_t* game);
+
+/**************** game_print ****************/
+/* Prints the a object 
+ *
+ * Caller provides:
+ *   - game object to print
+ */
+void game_test(const game_t* game);
+
+
+void game_delete(game_t* game);
 
 
 #endif // __GAME_H
