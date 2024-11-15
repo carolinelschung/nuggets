@@ -17,6 +17,8 @@
 #include "game.h"
 #include "../support/message.h"
 #include "../map_module/map.h"
+#include "../libcs50/file.h"
+
 
 #define GoldTotal 250
 #define GoldMinNumPiles 10
@@ -41,6 +43,7 @@ char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
 int getIndex(int x, int y, int mapWidth);
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
+void printMap(const game_t* game);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -56,7 +59,7 @@ game_t* game_init(FILE* mapFile, int seed)
 
 
     game->map = encodeMap(mapFile, game);
-    game->mapWithNoPlayers = encodeMap(mapFile, game);
+    //game->mapWithNoPlayers = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
@@ -65,7 +68,11 @@ game_t* game_init(FILE* mapFile, int seed)
         game->activePlayers[i] = NULL;
     }
 
+    game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
+    strcpy(game->mapWithNoPlayers, game->map);
+
     placeGold(game);
+
   
     return game;  // Return the initialized game struct
 }
@@ -156,14 +163,24 @@ void game_print(const game_t* game)
             putchar('\n');
         }
     }
+
+    for (int i = 0; i < game->encodedMapLength; i++) {
+        putchar(game->mapWithNoPlayers[i]);
+        // If we've reached the end of a row, print a newline
+        if ((i + 1) % game->mapWidth == 0) {
+            putchar('\n');
+        }
+    }
 }
+
+
 
 /**************** game_test ****************/
 /* test scenario for game and map */
 void game_test(const game_t* game)
 {
     int x, y;
-    int seed = 42;  // Example seed value
+    int seed = 4467;  // Example seed value
 
     // Pass addresses of x, y, and seed to allow modification in map_player_init
     map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
@@ -172,13 +189,19 @@ void game_test(const game_t* game)
 
     printf("Player initialized at position: (%d, %d)\n", x, y);
 
+    printMap(game);
+
+    char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
+    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+
     for (int i = 0; i < game->encodedMapLength; i++) {
-        putchar(game->map[i]);
+        putchar(visibleMap[i]);
         // If we've reached the end of a row, print a newline
         if ((i + 1) % game->mapWidth == 0) {
             putchar('\n');
         }
     }
+    
 
 
     //calculate player visible map and print it,
@@ -191,7 +214,7 @@ void game_test(const game_t* game)
 /************* HELPER FUNCTIONS *****************/
 
 /**************** encodeMap ****************/
-/* Reads the map file and returns it as a string, setting the map length and width. */
+/* Reads the map file line by line using file_readLine and sets the map dimensions */
 char* encodeMap(FILE* mapFile, game_t* game) 
 {
     if (mapFile == NULL) {
@@ -199,46 +222,64 @@ char* encodeMap(FILE* mapFile, game_t* game)
         return NULL;
     }
 
-    char* map = mem_malloc(1);
+    // Initialize map data and properties
+    size_t mapSize = 0;
+    size_t bufferSize = 1024;
+    char* map = mem_malloc(bufferSize);
     if (map == NULL) {
         fprintf(stderr, "Error: Memory allocation failed.\n");
         fclose(mapFile);
         return NULL;
     }
 
-    size_t mapSize = 0;
-    game->mapHeight = 0;
     game->mapWidth = 0;
+    game->mapHeight = 0;
 
-    char line[MAX_LINE_LENGTH];
-    while (fgets(line, MAX_LINE_LENGTH, mapFile) != NULL) {
+    // Read each line from the file and append to map buffer
+    char* line;
+    while ((line = file_readLine(mapFile)) != NULL) {
         size_t lineLen = strlen(line);
-        if (line[lineLen - 1] == '\n') {
-            line[lineLen - 1] = '\0';
-            lineLen--;
-        }
+
+        // Set map width based on the first line
         if (game->mapWidth == 0) {
             game->mapWidth = lineLen;
-        }
-        char* newMap = realloc(map, mapSize + lineLen + 1);
-        if (newMap == NULL) {
-            fprintf(stderr, "Error: Memory allocation failed while loading map.\n");
+        } else if (lineLen != game->mapWidth) {
+            fprintf(stderr, "Error: Inconsistent line length in map file.\n");
+            free(line);
             free(map);
             fclose(mapFile);
             return NULL;
         }
-        map = newMap;
+
+        // Ensure map buffer has enough space for the new line
+        if (mapSize + lineLen + 1 >= bufferSize) {
+            bufferSize *= 2;
+            char* newMap = realloc(map, bufferSize);
+            if (newMap == NULL) {
+                fprintf(stderr, "Error: Memory reallocation failed.\n");
+                free(line);
+                free(map);
+                fclose(mapFile);
+                return NULL;
+            }
+            map = newMap;
+        }
+
+        // Append line to map and update map size
         memcpy(map + mapSize, line, lineLen);
         mapSize += lineLen;
+        free(line);  // Free line after it’s copied to the map buffer
         game->mapHeight++;
     }
 
-    map[mapSize] = '\0';
+    map[mapSize] = '\0';  // Null-terminate the map
+    printf("width: %d, height %d\n", game->mapWidth, game->mapHeight);
     game->encodedMapLength = game->mapWidth * game->mapHeight;
 
     fclose(mapFile);
-    return map;
+    return map;  // Return the map buffer
 }
+
 
 
 
@@ -248,8 +289,8 @@ char* encodeMap(FILE* mapFile, game_t* game)
  */
 void placeGold(game_t* game)
 {
-    if (game == NULL || game->map == NULL) {
-        fprintf(stderr, "Game or map is not initialized.\n");
+    if (game == NULL || game->map == NULL || game->encodedMapLength == 0) {
+        fprintf(stderr, "Error: Game or map is not initialized, or map length is zero. %d %d %d\n", game->mapWidth, game->mapHeight, game->encodedMapLength);
         return;
     }
 
@@ -266,6 +307,7 @@ void placeGold(game_t* game)
 
         bool spotFound = false;
         while (!spotFound) {
+            // Ensure that encodedMapLength is non-zero to avoid division by zero
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
                 game->map[randIndex] = '*';
@@ -284,6 +326,7 @@ void placeGold(game_t* game)
         }
     }
 }
+
 
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
 {
@@ -328,8 +371,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     fflush(stdout);
 
     char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
-    //printf("x %d, y %d\n", proposedX, proposedY);
-    //fflush(stdout);
+ 
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     
     map_merge(player->playerMap, visibleMap);
@@ -359,6 +401,19 @@ void game_delete(game_t* game) {
     }
 
     mem_free(game);
+}
+
+/**************** game_printMap ****************/
+/* prints map of a game for testing */
+void printMap(const game_t* game)
+{
+    for (int i = 0; i < game->encodedMapLength; i++) {
+        putchar(game->map[i]);
+        // If we've reached the end of a row, print a newline
+        if ((i + 1) % game->mapWidth == 0) {
+            putchar('\n');
+        }
+    }
 }
 
 

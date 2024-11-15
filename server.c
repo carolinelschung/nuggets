@@ -36,7 +36,7 @@ int main(int argc, char* argv[])
     fprintf(stderr, "Error: Failed to initialize game\n");
     return 1;
   }
-
+  
   // Awake messaging systrem and announce port
   game->port = message_init(stderr);
   if (game->port == 0) {
@@ -44,6 +44,8 @@ int main(int argc, char* argv[])
       mem_free(game);
       return 1;
   }
+
+  game_test(game);
 
   bool success = message_loop(NULL, 0, NULL, handleInput, handleMessage);
 

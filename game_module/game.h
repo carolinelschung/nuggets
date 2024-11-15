@@ -86,6 +86,7 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType);
  */
 void game_print(const game_t* game);
 
+
 /**************** game_print ****************/
 /* Prints the a object 
  *
