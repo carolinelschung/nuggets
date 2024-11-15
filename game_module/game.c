@@ -44,7 +44,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
 
 game_t* game_init(FILE* mapFile, int seed)
 {
-    game_t* game = mem_malloc_assert(sizeof(game_t), "game struct allocation");
+    game_t* game = mem_malloc(sizeof(game_t));
 
     // Setup srand logic
     if (seed != 0) {
@@ -59,9 +59,6 @@ game_t* game_init(FILE* mapFile, int seed)
     game->mapWithNoPlayers = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
-    game->encodedMapLength = 0;
-    game->mapHeight = 0;
-    game->mapWidth = 0;
 
     // initialize activePlayers array
     for (int i = 0; i < MaxPlayers; i++) {
@@ -327,9 +324,14 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     player->xPosition = proposedX;
     player->yPosition = proposedY;
 
-    char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
-    map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    printf("x %d, y %d\n", proposedX, proposedY);
+    fflush(stdout);
 
+    char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
+    //printf("x %d, y %d\n", proposedX, proposedY);
+    //fflush(stdout);
+    map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    
     map_merge(player->playerMap, visibleMap);
     
     return true;

@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
   }
 
   // Clean up after the loop ends
-  mem_free(game);
+  game_delete(game);
   return 0;
   
 }
