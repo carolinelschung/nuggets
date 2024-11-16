@@ -8,6 +8,7 @@
 #include<stdbool.h>
 #include<unistd.h>
 #include<math.h>
+#include "../game_module/game.h"
 
 
 /*
@@ -17,12 +18,13 @@ void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, c
 
 /*
 Function that takes in a player's coordinates and the master map and outputs the visibleMap (only what the payer sees immediately)  
-
 */
 void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int NC, const int NR);
 
 /*
 Function that takes in the visible map and the payer's presious map and merges them omitting the gold from previous map. 
-
 */
 void map_merge(char* playerMap, char* visibleMap);
+
+
+char* map_decode(char* map, game_t* game);

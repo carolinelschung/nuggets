@@ -173,7 +173,8 @@ void game_test(game_t* game)
     visibleMap[y*game->mapWidth+x] = '@';
 
     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    printMap(visibleMap, game);
+    char* mapToPrint = map_decode(visibleMap, game);
+    printf("%s", mapToPrint);
 
     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
@@ -186,7 +187,8 @@ void game_test(game_t* game)
 
     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(visibleMap, previousMap);
-    printMap(visibleMap, game);
+    mapToPrint = map_decode(visibleMap, game);
+    printf("%s", mapToPrint);
 
     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
@@ -198,7 +200,8 @@ void game_test(game_t* game)
 
     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(visibleMap, previousMap);
-    printMap(visibleMap, game);
+    mapToPrint = map_decode(visibleMap, game);
+    printf("%s", mapToPrint);
 
     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
@@ -209,7 +212,8 @@ void game_test(game_t* game)
 
     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(visibleMap, previousMap);
-    printMap(visibleMap, game);
+    mapToPrint = map_decode(visibleMap, game);
+    printf("%s", mapToPrint);
 
 }
 

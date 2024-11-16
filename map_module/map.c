@@ -8,6 +8,8 @@
 #include<stdbool.h>
 #include<unistd.h>
 #include<math.h>
+#include "../game_module/game.h"
+#include "../libcs50/mem.h"
 
 
 /*
@@ -255,4 +257,25 @@ void map_merge(char* playerMap, char* visibleMap){
   //   insert whatever is coming from the new visible map:
   //   if visibleMap != ' '
   //       playerMap(i) = visibleMap(i)
+}
+
+
+char* map_decode(char* map, game_t* game)
+{
+    // Calculate the length of the new string including newlines and null terminator
+    int newLength = game->encodedMapLength + game->mapHeight; // Each row gets a newline
+    char* result = mem_malloc((newLength + 1) * sizeof(char)); // +1 for the null terminator
+    
+    int resultIndex = 0;
+    for (int i = 0; i < game->encodedMapLength; i++) {
+        result[resultIndex++] = map[i];
+        
+        // If we've reached the end of a row, add a newline
+        if ((i + 1) % game->mapWidth == 0) {
+            result[resultIndex++] = '\n';
+        }
+    }
+    result[resultIndex] = '\0'; // Null-terminate the string
+
+    return result;  // Return the formatted map string
 }
