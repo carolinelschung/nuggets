@@ -463,6 +463,7 @@ main(const int argc, char* argv[])
   const char* program = argv[0];
   if (argc == 1) {
     // in this case (no arguments) we don't yet know our correspondent
+    // this is the way to initialize server
     printf("waiting on port %d for contact....\n", ourPort);
     other = message_noAddr(); // no correspondent yet
   } else if (argc != 3) {
@@ -485,7 +486,7 @@ main(const int argc, char* argv[])
   // Loop, waiting for input or for messages; provide three callback functions.
   // We use the 'arg' parameter to carry a pointer to 'other',
   // which allows handleMessage to change it and handleInput to use it.
-  bool ok = message_loop(&other, 9, handleTimeout, handleInput, handleMessage);
+  bool ok = message_loop(&other, 60, handleTimeout, handleInput, handleMessage);
 
   // shut down the modules
   message_done();
@@ -580,3 +581,6 @@ handleMessage(void* arg, const addr_t from, const char* message)
 }
 
 #endif // UNIT_TEST
+
+
+// write it so the specificatios is gotten properly
