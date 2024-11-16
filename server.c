@@ -1,0 +1,223 @@
+/* 
+ * server.c - CS50 Nuggets game module
+ *
+ * see server.h for more information.
+ *
+ * Joseph Quaratiello, November 2024
+ */
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include "game_module/game.h"
+#include "server.h"
+#include "support/message.h"
+#include "libcs50/mem.h"
+#include <ctype.h>
+
+
+// Function prototypes
+FILE* parseArgs(int argc, char* argv[], int* seed);
+bool handleInput(void* arg);
+bool handleMessage(void* arg, const addr_t from, const char* buf);
+
+int main(int argc, char* argv[])
+{
+
+  int seed;
+
+  // Parse args and open map file
+  FILE* mapFile = parseArgs(argc, argv, &seed);
+
+  // initialize the game
+  game_t* game = game_init(mapFile, seed);
+  if (game == NULL) {
+    fprintf(stderr, "Error: Failed to initialize game\n");
+    return 1;
+  }
+  
+  // Awake messaging systrem and announce port
+  game->port = message_init(stderr);
+  if (game->port == 0) {
+      fprintf(stderr, "Error: Failed to initialize messaging system.\n");
+      mem_free(game);
+      return 1;
+  }
+
+  game_test(game);
+
+  bool success = message_loop(game, 0, NULL, handleInput, handleMessage);
+
+  if (!success) {
+    fprintf(stderr, "Error in message loop\n");
+  }
+
+  // Clean up after the loop ends
+  game_delete(game);
+  return 0;
+  
+}
+
+
+// Function to parse command-line arguments, validate them, and open the map file
+FILE* parseArgs(int argc, char* argv[], int* seed) 
+{
+    // Check for the correct number of arguments
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "Usage: %s map.txt [seed]\n", argv[0]);
+        exit(1);
+    }
+
+    // Open the map file
+    const char* mapFilename = argv[1];
+    FILE* mapFile = fopen(mapFilename, "r");
+    if (mapFile == NULL) {
+        fprintf(stderr, "Failed to open %s\n", mapFilename);
+    }
+
+    // Parse the optional seed argument, default to 0 if not provided
+    *seed = (argc == 3) ? atoi(argv[2]) : 0;
+    if (*seed < 0) {
+        fprintf(stderr, "Seed must be a positive int\n");
+    }
+
+    return mapFile; // Return the opened map file
+}
+
+// Helper Functions
+bool handleInput(void* arg) {
+    char input[100];
+    if (fgets(input, sizeof(input), stdin) != NULL) {
+        if (strcmp(input, "quit\n") == 0) {
+            printf("Server shutting down.\n");
+            return true;  // Return true to exit the message loop
+        } else if (strcmp(input, "status\n") == 0) {
+            printf("Server status: running...\n");
+            // Optionally provide more detailed game status info here
+        }
+    }
+    return false;  // Return false to keep the loop running
+}
+
+bool handleMessage(void* arg, const addr_t from, const char* buf) {
+    game_t* game = (game_t*) arg;
+    if (game->goldRemaining == 0) {
+        // send message to all players and the spectator printing out the result
+        // 
+    }
+    printf("Received message from %s: %s\n", message_stringAddr(from), buf);
+
+    // Check whether the incoming message is from a player or a spectator
+    // if (game->activePlayersCount < 26) {
+
+    // }
+    // else {
+
+    // }
+    if (strncmp(buf, "PLAY ", 5) == 0) {
+        if (game->activePlayersCount < 26) {
+             const char* playerName = buf + 5;  // Extract player name
+             
+        if (strlen(playerName) > 0) {
+            char acceptedName[26] = "";
+            // char* 
+                size_t length = 0;
+            for (size_t i = 0; playerName[i] != '\0' && length < 26; i++) {
+                char c = playerName[i];
+                if (isgraph(c) || isblank(c)) {
+                    acceptedName[length++] = c;
+                } else {
+                    acceptedName[length++] = '_';
+                }
+            }
+            // Null terminate the string
+            acceptedName[length] = '\0';
+            // Add player to the game
+            printf("New player joining: %s\n", playerName);
+            // Send OK message back to player with assigned letter
+            char response[10];
+            snprintf(response, sizeof(response), "OK A"); // Assign 'A' as example
+            message_send(from, response);
+            char result[50];
+        sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
+        message_send(from, result);  // Send initial grid size
+        char gold[12];
+        sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
+        message_send(from, gold);
+        message_send(from, "DISPLAY\n...");
+              // Send current game state
+        char first_part[] = "DISPLAY";
+        char* map = game->map;
+        char message[1024];
+        snprintf(message, sizeof(result),"%s%s", first_part, map);
+        } else {
+            message_send(from, "QUIT Sorry - you must provide a player's name.");
+        }
+    }
+    else {
+        message_send(from, "QUIT Game is full: no more players can join.");
+    }
+       
+    } else if (strcmp(buf, "SPECTATE") == 0) {
+        if (game->num_spectators > 0) {
+            message_send(game->spectator, "QUIT You have been replaced by a new spectator");
+            // the server needs to forget this spectator
+        }
+        else {
+            game->num_spectators += 1;
+        }
+         game->spectator = from;
+
+        printf("Spectator joining.\n");
+        char result[50];
+        sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
+        message_send(from, result);  // Send initial grid size
+        char gold[12];
+        sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
+        message_send(from, gold);
+        
+        
+              // Send current game state
+        char first_part[] = "DISPLAY\n";
+        char* map = game->map;
+        char message[message_MaxBytes];
+        snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+        message_send(from, message);
+    } else if (strncmp(buf, "KEY ", 4) == 0) {
+        char key = buf[4];
+        printf("Key received from player: %c\n", key);
+        // Process the key command (e.g., player movement)
+        // Array of valid controls
+        char valid_chars[] = "Qljkyubn";
+         if (strchr(valid_chars, key)) {
+            if (key == 'Q') {
+                if (message_eqAddr(from, game->spectator)) {
+                    message_send(from, "QUIT Thanks for watching");
+                }
+                else {
+                    message_send(from,"QUIT Thanks for playing");
+
+                }
+            }
+            // need a boolean here to check whether the move was valid or not
+            game_playerMove(from, game, key);
+            //if the player moves to a new location
+            // for (int i = 0; i < (iterate over all the active players) ;i++) {
+
+            // message_send(address, "DISPLAY")
+            //}
+        } else {
+            message_send(from, "ERROR : Not a valid input");
+        }
+    } else {
+        message_send(from, "ERROR Unrecognized command");
+    }
+
+    return false;  // Return false to keep the loop running
+}
+
+
+
+

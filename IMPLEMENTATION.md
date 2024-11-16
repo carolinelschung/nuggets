@@ -9,27 +9,9 @@ We avoid repeating information that is provided in the requirements spec.
 
 ## Plan for division of labor
 
-#### Server Side:
-
-- Nafis 
-    - Message Module
-        - Handles messaging between server side and client side
-- Joe 
-    - Game Module
-        - Handles game initialization
-        - Handles game state updates whenever literally anything happens from any client
-- Anya
-     - Map module
-    - Map conversion from .txt to array and back
-Set of functions that manage maps: take in a map, a command, and some player info return a new map 
-
-#### Client Side:
-
-- CC
-    - readMessage Module
-    - sendMessage Module
-Can remove gameStatus
-Make sure to handle mal messages
+> Update your plan for distributing the project work among your 3(4) team members.
+> Who writes the client program, the server program, each module?
+> Who is responsible for various aspects of testing, for documentation, etc?
 
 ## Player
 ### Data Structures
@@ -248,9 +230,23 @@ static int parseArgs(const int argc, char* argv[]);
 
 ---
 
-## Game module
+## XYZ module
+
+> For each module, repeat the same framework above.
 
 ### Data structures
+
+```C
+typedef struct player {
+    char* playerName;
+    char* playerMap;
+    char role;
+    int xPosition;
+    int yPosition;
+    int goldCaptured;
+    bool isActive;
+} player_t;
+```
 
 #### Game Struct
 
@@ -279,28 +275,6 @@ typedef struct player {
 } player_t;
 ```
 ### Definition of function prototypes
-
-`game_init`
-Initializes the game state, including map, players, and gold piles. 
-```C
-int initializeGame(const char* mapFile, int seed);
-```
-
-`game_updateState`
-Updates the game state based on player actions or events.
-```C
-void updateState(player_t* player, char action);
-```
-
-`game_playerMove`
-Modifies the encoded map string to move the player character to a requested location only if move is valid. Also checks if player moves onto gold. Returns new encoded visible map.
-```C
-char* game_playerMove(char* currentVisibleMap, char moveType, int xPos, int yPos);
-```
-
-`game_mapEncode`
-Function that turns a .txt file into a string.
-`char* game_mapEncode(FILE* fp);`
 
 ### Detailed pseudo code
 
