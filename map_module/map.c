@@ -31,7 +31,7 @@ void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, c
   while(masterMap[location] != '.'){
     *x = rand() % NC;
     *y = rand() % NR;
-    location = (*y)*NC + (*x) + 1;
+    location = (*y)*NC + (*x);
   }
   // while (x, y) location is not a valid '.' on masterMap
   //   if seed is non null 

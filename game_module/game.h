@@ -35,7 +35,7 @@ typedef struct game {
     int encodedMapLength;
     hashtable_t* players;
     hashtable_t* goldPileAmounts;
-    player_t* activePlayers[MaxPlayers]; // 26 max players
+    addr_t* activePlayers[MaxPlayers]; // 26 max players
     int activePlayersCount;
     int goldRemaining;
 } game_t;
@@ -75,7 +75,7 @@ void game_updateState(player_t* player, char action);
  *   - xPos: the player's current x-coordinate on the map
  *   - yPos: the player's current y-coordinate on the map
  */
-void game_playerMove(addr_t playerAddress, game_t* game, char moveType);
+bool game_playerMove(addr_t playerAddress, game_t* game, char moveType);
 
 
 /**************** game_print ****************/
@@ -93,7 +93,7 @@ void game_print(const game_t* game);
  * Caller provides:
  *   - game object to print
  */
-void game_test(const game_t* game);
+void game_test(game_t* game);
 
 
 void game_delete(game_t* game);

@@ -45,6 +45,8 @@ int main(int argc, char* argv[])
       return 1;
   }
 
+  //game_print(game);
+
   game_test(game);
 
   bool success = message_loop(NULL, 0, NULL, handleInput, handleMessage);

@@ -28,7 +28,7 @@
 
 /**************** local types ****************/
 typedef struct player {
-    char* playerName;
+    char playerName;
     char* playerMap;
     char* address;
     char role;
@@ -43,7 +43,8 @@ char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
 int getIndex(int x, int y, int mapWidth);
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
-void printMap(const game_t* game);
+void printMap(char* map, game_t* game);
+//static void print_item(FILE* fp, const char* key, void* item);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -59,7 +60,6 @@ game_t* game_init(FILE* mapFile, int seed)
 
 
     game->map = encodeMap(mapFile, game);
-    //game->mapWithNoPlayers = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
@@ -78,10 +78,10 @@ game_t* game_init(FILE* mapFile, int seed)
 }
 
 
-void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
+bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)
 {
     player_t* player = hashtable_find(game->players, message_stringAddr(playerAddress));
-    if (!player) return; // Check for player existence to avoid NULL dereference
+    if (player == NULL) return false; // Check for player existence to avoid NULL dereference
 
     int x, y;
     bool success;
@@ -122,16 +122,11 @@ void game_playerMove(addr_t playerAddress, game_t* game, char moveType)
             break;
         default:
             // Invalid move type, return without moving
-            return;
+            return false;
     }
 
     // Attempt to validate and move the player
-    success = validateAndMove(game, player, x, y);
-
-    // Optionally handle unsuccessful moves, e.g., send a message to the player
-    if (!success) {
-        printf("Player %s's move to (%d, %d) was invalid.\n", player->playerName, x, y);
-    }
+    return success = validateAndMove(game, player, x, y);
 }
 
 
@@ -148,24 +143,9 @@ void game_print(const game_t* game)
     printf("Map Dimensions: %dx%d\n", game->mapHeight, game->mapWidth);
     printf("Encoded Map Length: %d\n", game->encodedMapLength);
     printf("Gold Remaining: %d\n", game->goldRemaining);
-    
-    // Example of retrieving a specific gold pile amount (using index 10 for demonstration)
-    char key[12];
-    snprintf(key, sizeof(key), "%d", 10);
-    int* goldExamplePtr = hashtable_find(game->goldPileAmounts, key);
-    int goldExample = goldExamplePtr ? *goldExamplePtr : 0;
-    printf("Gold pile at index 10 contains: %d\n", goldExample);
 
     for (int i = 0; i < game->encodedMapLength; i++) {
         putchar(game->map[i]);
-        // If we've reached the end of a row, print a newline
-        if ((i + 1) % game->mapWidth == 0) {
-            putchar('\n');
-        }
-    }
-
-    for (int i = 0; i < game->encodedMapLength; i++) {
-        putchar(game->mapWithNoPlayers[i]);
         // If we've reached the end of a row, print a newline
         if ((i + 1) % game->mapWidth == 0) {
             putchar('\n');
@@ -177,36 +157,84 @@ void game_print(const game_t* game)
 
 /**************** game_test ****************/
 /* test scenario for game and map */
-void game_test(const game_t* game)
+void game_test(game_t* game)
 {
+    
     int x, y;
-    int seed = 4467;  // Example seed value
+    int seed = 21;  // Example seed value
 
     // Pass addresses of x, y, and seed to allow modification in map_player_init
     map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
 
-    game->map[y*game->mapWidth+x] = '@';
-
     printf("Player initialized at position: (%d, %d)\n", x, y);
 
-    printMap(game);
-
     char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
+
+    visibleMap[y*game->mapWidth+x] = '@';
+
     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    printMap(visibleMap, game);
 
-    for (int i = 0; i < game->encodedMapLength; i++) {
-        putchar(visibleMap[i]);
-        // If we've reached the end of a row, print a newline
-        if ((i + 1) % game->mapWidth == 0) {
-            putchar('\n');
-        }
+    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+
+    x = x - 1;
+    y = y + 1;
+    visibleMap[y*game->mapWidth+x] = '@';
+
+    char* previousMap = mem_malloc((1+strlen(visibleMap))*sizeof(char));
+    strcpy(previousMap, visibleMap);
+
+    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    map_merge(visibleMap, previousMap);
+    printMap(visibleMap, game);
+
+    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+
+    x = x - 1;
+    y = y + 1;
+    visibleMap[y*game->mapWidth+x] = '@';
+
+    strcpy(previousMap, visibleMap);
+
+    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    map_merge(visibleMap, previousMap);
+    printMap(visibleMap, game);
+
+    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+
+    x = x + 20;
+    visibleMap[y*game->mapWidth+x] = '@';
+
+    strcpy(previousMap, visibleMap);
+
+    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+    map_merge(visibleMap, previousMap);
+    printMap(visibleMap, game);
+
+}
+
+void game_delete(game_t* game) {
+    if (game == NULL) return;
+
+    // Free map memory
+    if (game->map) {
+        mem_free(game->map);
     }
-    
+    if (game->mapWithNoPlayers) {
+        mem_free(game->mapWithNoPlayers);
+    }
 
+    // Free gold piles
+    if (game->goldPileAmounts) {
+        hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
+    }
 
-    //calculate player visible map and print it,
+    // Free players hashtable
+    if (game->players) {
+        hashtable_delete(game->players, mem_free); // Pass mem_free if players have allocated memory
+    }
 
-    
+    mem_free(game);
 }
 
 
@@ -299,13 +327,18 @@ void placeGold(game_t* game)
 
     game->goldPileAmounts = hashtable_new(numPiles);
 
+    int goldAmounts[numPiles];
+
     for (int i = 0; i < numPiles; i++) 
     {
         int maxPileSize = goldRemaining - (numPiles - i - 1);
-        int pileSize = 1 + rand() % maxPileSize;
-        goldRemaining -= pileSize;
+        //int pileSize = 1 + rand() % maxPileSize;
+        goldAmounts[i] = 1 + rand() % maxPileSize;
+        //goldRemaining -= pileSize;
+        goldRemaining -= goldAmounts[i];
 
         bool spotFound = false;
+        char key[12];
         while (!spotFound) {
             // Ensure that encodedMapLength is non-zero to avoid division by zero
             int randIndex = rand() % game->encodedMapLength;
@@ -313,20 +346,21 @@ void placeGold(game_t* game)
                 game->map[randIndex] = '*';
 
                 // Convert randIndex to a string for the key
-                char key[12];
                 snprintf(key, sizeof(key), "%d", randIndex);
 
-                // Allocate memory for the pile size and store in the hashtable
-                int* pileSizePtr = mem_malloc(sizeof(int));
-                *pileSizePtr = pileSize;
+                //printf("PILESIZE: %d\n", pileSize);
 
-                hashtable_insert(game->goldPileAmounts, key, pileSizePtr);
+                hashtable_insert(game->goldPileAmounts, key, &goldAmounts[i]);
                 spotFound = true;
+
+                //printf("PILESIZE: %d\n", goldAmounts[i]);
             }
         }
-    }
-}
+    }   
 
+    //hashtable_print(game->goldPileAmounts, stdout, print_item);
+
+}
 
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
 {
@@ -347,7 +381,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         snprintf(key, sizeof(key), "%d", proposedIndex);
 
         int* goldAmountPtr = hashtable_find(game->goldPileAmounts, key);
-        int goldAmountPlayerFound = goldAmountPtr ? *goldAmountPtr : 0;
+        int goldAmountPlayerFound = *goldAmountPtr;
 
         player->goldCaptured += goldAmountPlayerFound;
         game->goldRemaining -= goldAmountPlayerFound;
@@ -360,60 +394,43 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         }
     }
 
-    
-
-    game->map[proposedIndex] = '@';
+    game->map[proposedIndex] = player->playerName;
 
     player->xPosition = proposedX;
     player->yPosition = proposedY;
 
     printf("x %d, y %d\n", proposedX, proposedY);
-    fflush(stdout);
-
+   
     char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
- 
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    
     map_merge(player->playerMap, visibleMap);
     
     return true;
 }
 
-void game_delete(game_t* game) {
-    if (game == NULL) return;
-
-    // Free map memory
-    if (game->map) {
-        mem_free(game->map);
-    }
-    if (game->mapWithNoPlayers) {
-        mem_free(game->mapWithNoPlayers);
-    }
-
-    // Free gold piles
-    if (game->goldPileAmounts) {
-        hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
-    }
-
-    // Free players hashtable
-    if (game->players) {
-        hashtable_delete(game->players, mem_free); // Pass mem_free if players have allocated memory
-    }
-
-    mem_free(game);
-}
-
 /**************** game_printMap ****************/
 /* prints map of a game for testing */
-void printMap(const game_t* game)
+void printMap(char* map, game_t* game)
 {
     for (int i = 0; i < game->encodedMapLength; i++) {
-        putchar(game->map[i]);
+        putchar(map[i]);
         // If we've reached the end of a row, print a newline
         if ((i + 1) % game->mapWidth == 0) {
             putchar('\n');
         }
-    }
+    }    
 }
+
+/*
+static void print_item(FILE* fp, const char* key, void* item) {
+    int* amt = item;
+    if (amt == NULL) {
+        printf("(null)");
+    } else {
+        printf("Key: %s, Item: %d", key, *amt);
+    }
+
+}
+*/
 
 
