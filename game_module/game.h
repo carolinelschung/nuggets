@@ -29,6 +29,7 @@ typedef struct player {
     char* playerName;
     char playerLetter;
     char* playerMap;
+    int goldJustCaptured;
     addr_t address;
     int xPosition;
     int yPosition;

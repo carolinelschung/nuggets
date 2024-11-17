@@ -152,17 +152,18 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 char gold[12];
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
                 message_send(from, gold);
-                char first_part[] = "DISPLAY\n";
+                char first_part[] = "DISPLAY\n\n\n\n\n";
                 char* map = map_decode(player->playerMap, game);
-                printf("Map decoded:\n");
-                fflush(stdout);
-                printf("%s\n", player->playerMap);
-                fflush(stdout);
+                // printf("Map decoded before move:\n");
+                // fflush(stdout);
+                // printf("%s\n", player->playerMap);
+                // fflush(stdout);
                 char message[message_MaxBytes];
                 snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                printf("%s\n", player->playerMap);
-                fflush(stdout);
+                // printf("%s\n", player->playerMap);
+                // fflush(stdout);
                 message_send(from, message);
+
                 
             } 
             else {
@@ -192,7 +193,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
         sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
         message_send(from, gold);
         // Send current game state
-        char first_part[] = "DISPLAY\n";
+        char first_part[] = "DISPLAY\n\n\n\n\n";
         char* map = map_decode(game->map, game);
         char message[message_MaxBytes];
         snprintf(message, message_MaxBytes,"%s%s", first_part, map);
@@ -231,58 +232,58 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
 
             /*if new_gold_remaining is not equal to num_gold_remaining, 
             we wanna send gold message to all the clients as well in the loop */
-            printf("{%d}\n", valid);
-            fflush(stdout);
+            // printf("{%d}\n", valid);
+            // fflush(stdout);
             
             if (valid) {
-                printf("{%d--Valid}\n", valid);
-                fflush(stdout);
+                // printf("{%d--Valid}\n", valid);
+                // fflush(stdout);
                 for (int i = 0; i < MaxPlayers; i++) {
                     
-                    printf("Entered for loop %d\n", i);
-                    fflush(stdout);
+                    // printf("Entered for loop %d\n", i);
+                    // fflush(stdout);
                     // Needs to be fixed || game->activePlayers[i] != "-"
                     if ((message_isAddr(game->activePlayers[i])) ) {
                         
-                        printf("Entered if loop %d\n", i);
-                        fflush(stdout);
+                        // printf("Entered if loop %d\n", i);
+                        // fflush(stdout);
 
-                        char first_part[] = "DISPLAY\n";
-                        printf(" first part assigned \n");
-                        fflush(stdout);
+                        char first_part[] = "DISPLAY\n\n\n\n\n";
+                        // printf(" first part assigned \n");
+                        // fflush(stdout);
                         // printf("Address:\n %s\n", message_stringAddr((game->activePlayers[i])));
 
                         player_t* player = hashtable_find(game->players, message_stringAddr((game->activePlayers[i])));
                         // printf("%s\n", (game->activePlayers[i]));
-                        printf("\n%s\n", message_stringAddr((game->activePlayers[i])));
-                        fflush(stdout);
-                        if (player == NULL) {
-                            printf("Unsuccessful fetch\n");
-                            fflush(stdout);
-                        }
-                        printf("player t assigned \n");
-                        fflush(stdout);
-                        printf("player map:\n\n");
-                        fflush(stdout);
-                        printf("%s",player->playerMap);
-                        fflush(stdout);
+                        // printf("\n%s\n", message_stringAddr((game->activePlayers[i])));
+                        // fflush(stdout);
+                        // if (player == NULL) {
+                        //     printf("Unsuccessful fetch\n");
+                        //     fflush(stdout);
+                        // }
+                        // printf("player t assigned \n");
+                        // fflush(stdout);
+                        // printf("player map:\n\n");
+                        // fflush(stdout);
+                        // printf("%s",player->playerMap);
+                        // fflush(stdout);
                         char* map = map_decode(player->playerMap, game);
-                        printf("map declared\n");
-                        fflush(stdout);
+                        // printf("map declared\n");
+                        //fflush(stdout);
                         char message[message_MaxBytes];
-                        printf("Message Declared");
-                        fflush(stdout);
+                        // printf("Message Declared");
+                        // fflush(stdout);
                         snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                        printf("Message Assigned");
-                        fflush(stdout);
+                        // printf("Message Assigned");
+                        // fflush(stdout);
                        
                         message_send((game->activePlayers[i]), message);
                         char gold[12];
-                        sprintf(gold, "GOLD %d %d %d", 0, player->goldCaptured, game->goldRemaining);
+                        sprintf(gold, "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
                         message_send(game->activePlayers[i], gold);
                     } 
                 }
-                char first_part[] = "DISPLAY\n";
+                char first_part[] = "DISPLAY\n\n\n\n\n";
                 char* map = map_decode(game->map, game);
                 char message[message_MaxBytes];
                 snprintf(message, message_MaxBytes,"%s%s", first_part, map);

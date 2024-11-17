@@ -21,7 +21,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
 /*
 Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
 */
-char* map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR){
+void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR){
   int location = 0;
   
   if(seed == NULL){
@@ -43,7 +43,7 @@ char* map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, 
   //       x = srand(getpid())
   //       y = srand(getpid())
   // return
-  return masterMap;
+
 }
 
 /*
@@ -66,6 +66,8 @@ void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int 
     //printf("visible %c and master %c\n", visibleMap[i], masterMap[i]);
     //fflush(stdout);
   }
+
+  visibleMap[y*NC+x] = '@';
   // for each character on the masterMap (0 to strlen(masterMap))
   //   calculate coordinates of the point in (ptX, ptY) form
   //   if isVisible(x, y, ptX, ptY, masterMap)
