@@ -25,7 +25,16 @@
 #define MaxPlayers 26
 
 /**************** global types ****************/
-typedef struct player player_t;
+typedef struct player {
+    char* playerName;
+    char playerLetter;
+    char* playerMap;
+    addr_t address;
+    int xPosition;
+    int yPosition;
+    int goldCaptured;
+} player_t;
+
 typedef struct game {
     char* map;
     char* mapWithNoPlayers;
@@ -37,7 +46,11 @@ typedef struct game {
     hashtable_t* goldPileAmounts;
     addr_t* activePlayers[MaxPlayers]; // 26 max players
     int activePlayersCount;
+    bool hasSpectator;
+    addr_t spectatorAddress;
     int goldRemaining;
+    int seed;
+    char playerLetters[26];
 } game_t;
 
 /**************** functions ****************/
@@ -97,6 +110,9 @@ void game_test(game_t* game);
 
 
 void game_delete(game_t* game);
+
+
+player_t* game_playerInit(game_t* game, addr_t address, char* playerName);
 
 
 

@@ -15,8 +15,10 @@
 #include "server.h"
 #include "support/message.h"
 #include "libcs50/mem.h"
+#include <ctype.h>
+#include "map_module/map.h"
 
-
+#define MAX_NAME_LENGTH 50 // max number of chars in playerName
 // Function prototypes
 FILE* parseArgs(int argc, char* argv[], int* seed);
 bool handleInput(void* arg);
@@ -45,11 +47,9 @@ int main(int argc, char* argv[])
       return 1;
   }
 
-  //game_print(game);
-
   game_test(game);
 
-  bool success = message_loop(NULL, 0, NULL, handleInput, handleMessage);
+  bool success = message_loop(game, 0, NULL, handleInput, handleMessage);
 
   if (!success) {
     fprintf(stderr, "Error in message loop\n");
@@ -88,7 +88,8 @@ FILE* parseArgs(int argc, char* argv[], int* seed)
 }
 
 // Helper Functions
-bool handleInput(void* arg) {
+bool handleInput(void* arg) 
+{
     char input[100];
     if (fgets(input, sizeof(input), stdin) != NULL) {
         if (strcmp(input, "quit\n") == 0) {
@@ -102,37 +103,155 @@ bool handleInput(void* arg) {
     return false;  // Return false to keep the loop running
 }
 
-bool handleMessage(void* arg, const addr_t from, const char* buf) {
+bool handleMessage(void* arg, const addr_t from, const char* buf) 
+{
+    game_t* game = (game_t*) arg;
+    if (game->goldRemaining == 0) {
+        // send message to all players and the spectator printing out the result
+        // 
+    }
     printf("Received message from %s: %s\n", message_stringAddr(from), buf);
 
+    // Check whether the incoming message is from a player or a spectator
+    // if (game->activePlayersCount < 26) {
+
+    // }
+    // else {
+
+    // }
     if (strncmp(buf, "PLAY ", 5) == 0) {
-        const char* playerName = buf + 5;  // Extract player name
-        if (strlen(playerName) > 0) {
-            // Add player to the game
-            printf("New player joining: %s\n", playerName);
-            // Send OK message back to player with assigned letter
-            char response[10];
-            snprintf(response, sizeof(response), "OK A"); // Assign 'A' as example
-            message_send(from, response);
-        } else {
-            message_send(from, "QUIT Sorry - you must provide a player's name.");
+        if (game->activePlayersCount < 26) {
+            const char* playerName = buf + 5;  // Extract player name
+          
+            if (strlen(playerName) > 0) {
+                char acceptedName[MAX_NAME_LENGTH + 1];
+                strncpy(acceptedName, playerName, MAX_NAME_LENGTH);
+        
+                // Ensure null termination
+                acceptedName[MAX_NAME_LENGTH] = '\0';
+                
+                // Iterate through the copied string
+                for (int i = 0; acceptedName[i] != '\0'; i++) {
+                    if (!isgraph(acceptedName[i]) && !isblank(acceptedName[i])) {
+                        acceptedName[i] = '_';
+                    }
+                }
+
+                printf("New player joining: %s\n", acceptedName);
+                player_t* player = game_playerInit(game, from, acceptedName);
+                char response[5];
+                sprintf(response, "OK %c", player->playerLetter);
+                message_send(from, response);
+                char result[50];
+                sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
+                message_send(from, result);  // Send initial grid size
+                char gold[12];
+                sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
+                message_send(from, gold);
+                char first_part[] = "DISPLAY\n\n\n";
+                char* map = map_decode(player->playerMap, game);
+                char message[message_MaxBytes];
+                snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                message_send(from, message);
+                
+            } 
+            else {
+                message_send(from, "QUIT Sorry - you must provide a player's name.");
+            }
         }
-    } else if (strcmp(buf, "SPECTATE") == 0) {
+        else {
+            message_send(from, "QUIT Game is full: no more players can join.");
+        }
+       
+    } 
+    else if (strcmp(buf, "SPECTATE") == 0) {
+        if (game->hasSpectator) {
+            message_send(game->spectatorAddress, "QUIT You have been replaced by a new spectator");
+            // the server needs to forget this spectator
+        }
+        else {
+            game->hasSpectator = true;
+        }
+        game->spectatorAddress = from;
+
         printf("Spectator joining.\n");
-        // Add or replace current spectator
-        message_send(from, "GRID nrows ncols");  // Send initial grid size
-        message_send(from, "DISPLAY\n...");      // Send current game state
-    } else if (strncmp(buf, "KEY ", 4) == 0) {
+        char result[50];
+        sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
+        message_send(from, result);  // Send initial grid size
+        char gold[12];
+        sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
+        message_send(from, gold);
+        // Send current game state
+        char first_part[] = "DISPLAY\n";
+        char* map = map_decode(game->map, game);
+        char message[message_MaxBytes];
+        snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+        message_send(from, message);
+    } 
+
+    else if (strncmp(buf, "KEY ", 4) == 0) {
         char key = buf[4];
         printf("Key received from player: %c\n", key);
         // Process the key command (e.g., player movement)
-    } else {
+        // Array of valid controls
+        char valid_chars[] = "QljkyubnLJKYUBNq";
+        if (strchr(valid_chars, key)) {
+            printf("The keystroke is valid\n");
+            fflush(stderr);
+            if (key == 'Q' || key == 'q') {
+                if (message_eqAddr(from, game->spectatorAddress)) {
+                    message_send(from, "QUIT Thanks for watching");
+                }
+                else {
+                    message_send(from,"QUIT Thanks for playing");
+
+                }
+            }
+            // else {
+                
+            // }
+            // need a boolean here to check whether the move was valid or not
+            // It fails inside the helper function of game_playerMove
+            bool valid = game_playerMove(from, game, key);
+
+            if (valid) {
+                for (int i = 0; i < 26; i++) {
+
+                    // Needs to be fixed || game->activePlayers[i] != "-"
+                    if (game->activePlayers[i] != NULL || strcmp(message_stringAddr(*(game->activePlayers[i])), "-")) {
+
+                        // char first_part[] = "DISPLAY\n\n\n";
+                        // char* map = map_decode(game->map, game);
+                        // char message[message_MaxBytes];
+                        // snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                        // message_send(from, message);
+                        //send message
+                        char first_part[] = "DISPLAY\n";
+                        player_t* player = hashtable_find(game->players, message_stringAddr(*(game->activePlayers[i])));
+                        char* map = map_decode(player->playerMap, game);
+                        char message[message_MaxBytes];
+                        snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                       
+                        message_send(*(game->activePlayers[i]), message);
+                    } 
+                }
+                char first_part[] = "DISPLAY\n";
+                char* map = map_decode(game->map, game);
+                char message[message_MaxBytes];
+                snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                message_send(game->spectatorAddress, message);
+
+            }
+            // message_send(address, "DISPLAY")
+            //}
+        } else {
+            message_send(from, "ERROR : Not a valid input");
+        }
+    } 
+    else {
         message_send(from, "ERROR Unrecognized command");
     }
 
     return false;  // Return false to keep the loop running
 }
-
-
-
 

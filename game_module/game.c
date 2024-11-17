@@ -26,25 +26,13 @@
 #define MaxPlayers 26
 #define MAX_LINE_LENGTH 1024  // Set a reasonable max line length based on map constraints
 
-/**************** local types ****************/
-typedef struct player {
-    char playerName;
-    char* playerMap;
-    char* address;
-    char role;
-    int xPosition;
-    int yPosition;
-    int goldCaptured;
-    bool isActive;
-} player_t;
-
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
 void placeGold(game_t* game);
 int getIndex(int x, int y, int mapWidth);
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
 void printMap(char* map, game_t* game);
-//static void print_item(FILE* fp, const char* key, void* item);
+static void print_item(FILE* fp, const char* key, void* item);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -57,16 +45,23 @@ game_t* game_init(FILE* mapFile, int seed)
         srand(getpid());
     }
 
-
+    game->seed = seed;
 
     game->map = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
+
     // initialize activePlayers array
     for (int i = 0; i < MaxPlayers; i++) {
-        game->activePlayers[i] = NULL;
+        game->activePlayers[i] = NULL; // Zero-initialize each `addr_t` element
     }
+
+    // Initialize player letters
+    for (int i = 0; i < 26; i++) {
+        game->playerLetters[i] = 'A' + i;
+    }
+
 
     game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
     strcpy(game->mapWithNoPlayers, game->map);
@@ -241,6 +236,28 @@ void game_delete(game_t* game) {
     mem_free(game);
 }
 
+player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
+{
+    player_t* player = mem_malloc(sizeof(player_t));
+    for (int i = 0; i < 26; i++) {
+        if (game->activePlayers[i] == NULL) {
+            game->activePlayers[i] = &address;
+            player->address = address;
+            player->playerLetter = game->playerLetters[i];
+            player->playerName = playerName;
+            game->activePlayersCount+=1;
+            hashtable_insert(game->players, message_stringAddr(address), player);
+
+            int x, y;
+            player->playerMap = map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight);
+            player->xPosition = x;
+            player->yPosition = y;
+            return player;
+            
+        }
+    }
+    return NULL;
+}
 
 
 /************* HELPER FUNCTIONS *****************/
@@ -319,52 +336,48 @@ char* encodeMap(FILE* mapFile, game_t* game)
 /* Places gold randomly on map for a given game
  * Init and populate goldPileAmount Hashtable
  */
-void placeGold(game_t* game)
-{
+void placeGold(game_t* game) {
     if (game == NULL || game->map == NULL || game->encodedMapLength == 0) {
-        fprintf(stderr, "Error: Game or map is not initialized, or map length is zero. %d %d %d\n", game->mapWidth, game->mapHeight, game->encodedMapLength);
+        fprintf(stderr, "Error: Game or map is not initialized, or map length is zero.\n");
         return;
     }
 
     int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
     int goldRemaining = GoldTotal;
-
     game->goldPileAmounts = hashtable_new(numPiles);
 
-    int goldAmounts[numPiles];
+    for (int i = 0; i < numPiles; i++) {
+        // Generate a pile size with a bias toward the middle of the range 5-20
+        int pileSize = (rand() % 16 + 5 + rand() % 16 + 5) / 2;  // Average of two random numbers in the range 5-20
+        if (pileSize > goldRemaining) pileSize = goldRemaining;   // Avoid overspending
+        goldRemaining -= pileSize;
 
-    for (int i = 0; i < numPiles; i++) 
-    {
-        int maxPileSize = goldRemaining - (numPiles - i - 1);
-        //int pileSize = 1 + rand() % maxPileSize;
-        goldAmounts[i] = 1 + rand() % maxPileSize;
-        //goldRemaining -= pileSize;
-        goldRemaining -= goldAmounts[i];
+        // Allocate memory for pileSize to ensure each entry is unique
+        int* pileSizePtr = malloc(sizeof(int));
+        if (pileSizePtr == NULL) {
+            fprintf(stderr, "Error: Memory allocation failed for pileSize.\n");
+            return;
+        }
+        *pileSizePtr = pileSize;
 
         bool spotFound = false;
         char key[12];
         while (!spotFound) {
-            // Ensure that encodedMapLength is non-zero to avoid division by zero
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
                 game->map[randIndex] = '*';
-
-                // Convert randIndex to a string for the key
                 snprintf(key, sizeof(key), "%d", randIndex);
-
-                //printf("PILESIZE: %d\n", pileSize);
-
-                hashtable_insert(game->goldPileAmounts, key, &goldAmounts[i]);
+                hashtable_insert(game->goldPileAmounts, key, pileSizePtr);
                 spotFound = true;
-
-                //printf("PILESIZE: %d\n", goldAmounts[i]);
+                printf("Placed %d gold at position %d\n", *pileSizePtr, randIndex);
             }
         }
-    }   
+    }
 
-    //hashtable_print(game->goldPileAmounts, stdout, print_item);
-
+    hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
+
+
 
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
 {
@@ -398,13 +411,14 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         }
     }
 
-    game->map[proposedIndex] = player->playerName;
+    game->map[proposedIndex] = player->playerLetter;
 
     player->xPosition = proposedX;
     player->yPosition = proposedY;
-
+    
+    // It fails after printing this line
     printf("x %d, y %d\n", proposedX, proposedY);
-   
+    
     char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(player->playerMap, visibleMap);
@@ -425,7 +439,7 @@ void printMap(char* map, game_t* game)
     }    
 }
 
-/*
+
 static void print_item(FILE* fp, const char* key, void* item) {
     int* amt = item;
     if (amt == NULL) {
@@ -435,6 +449,3 @@ static void print_item(FILE* fp, const char* key, void* item) {
     }
 
 }
-*/
-
-
