@@ -116,6 +116,9 @@ void game_delete(game_t* game);
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName);
 
 
+char* game_getFinalScores(game_t* game);
+
+
 
 
 #endif // __GAME_H

@@ -33,6 +33,8 @@ int getIndex(int x, int y, int mapWidth);
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
 void printMap(char* map, game_t* game);
 static void print_item(FILE* fp, const char* key, void* item);
+player_t* getPlayerByLetter(char letter, game_t* game);
+void getPlayerByLetterHelper(void* arg, const char* key, void* item);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -80,53 +82,85 @@ bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)
     player_t* player = hashtable_find(game->players, message_stringAddr(playerAddress));
     if (player == NULL) return false; // Check for player existence to avoid NULL dereference
 
-    int x, y;
-    bool success;
-    
+    int x = player->xPosition;
+    int y = player->yPosition;
+
     // Determine the proposed movement based on the moveType
     switch (moveType) {
         case 'h': // Move left
-            x = player->xPosition - 1;
-            y = player->yPosition;
-            break;
+            return validateAndMove(game, player, x - 1, y);
         case 'l': // Move right
-            x = player->xPosition + 1;
-            y = player->yPosition;
-            break;
+            return validateAndMove(game, player, x + 1, y);
         case 'j': // Move down
-            x = player->xPosition;
-            y = player->yPosition + 1;
-            break;
+            return validateAndMove(game, player, x, y + 1);
         case 'k': // Move up
-            x = player->xPosition;
-            y = player->yPosition - 1;
-            break;
+            return validateAndMove(game, player, x, y - 1);
+
+        // Diagonal moves for lowercase letters
         case 'y': // Move diagonal up and left
-            x = player->xPosition - 1;
-            y = player->yPosition - 1;
-            break;
+            return validateAndMove(game, player, x - 1, y - 1);
         case 'u': // Move diagonal up and right
-            x = player->xPosition + 1;
-            y = player->yPosition - 1;
-            break;
+            return validateAndMove(game, player, x + 1, y - 1);
         case 'b': // Move diagonal down and left
-            x = player->xPosition - 1;
-            y = player->yPosition + 1;
-            break;
+            return validateAndMove(game, player, x - 1, y + 1);
         case 'n': // Move diagonal down and right
-            x = player->xPosition + 1;
-            y = player->yPosition + 1;
+            return validateAndMove(game, player, x + 1, y + 1);
+
+        // Capital letters for maximum moves in each direction
+        case 'H': // Move maximum left
+            while (validateAndMove(game, player, x - 1, y)) {
+                x--;  // Update x to the next position left
+            }
+            break;
+        case 'L': // Move maximum right
+            while (validateAndMove(game, player, x + 1, y)) {
+                x++;  // Update x to the next position right
+            }
+            break;
+        case 'K': // Move maximum up
+            while (validateAndMove(game, player, x, y - 1)) {
+                y--;  // Update y to the next position up
+            }
+            break;
+        case 'J': // Move maximum down
+            while (validateAndMove(game, player, x, y + 1)) {
+                y++;  // Update y to the next position down
+            }
+            break;
+
+        // Capital letters for diagonal maximum moves
+        case 'Y': // Move maximum diagonal up and left
+            while (validateAndMove(game, player, x - 1, y - 1)) {
+                x--;
+                y--;
+            }
+            break;
+        case 'U': // Move maximum diagonal up and right
+            while (validateAndMove(game, player, x + 1, y - 1)) {
+                x++;
+                y--;
+            }
+            break;
+        case 'B': // Move maximum diagonal down and left
+            while (validateAndMove(game, player, x - 1, y + 1)) {
+                x--;
+                y++;
+            }
+            break;
+        case 'N': // Move maximum diagonal down and right
+            while (validateAndMove(game, player, x + 1, y + 1)) {
+                x++;
+                y++;
+            }
             break;
         default:
             return false;
     }
 
-    // Attempt to validate and move the player
-    success = validateAndMove(game, player, x, y);
-    printf("Success?: %d", success);
-    
-    return success;
-    
+    // Update player's final position after completing the loop
+    player->xPosition = x;
+    player->yPosition = y;
+    return true;
 }
 
 
@@ -405,8 +439,65 @@ void placeGold(game_t* game) {
     hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
 
+char* game_getFinalScores(game_t* game)
+{   
+    // Allocate memory for the final scores message
+    char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
+    if (quitMessage == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
+        return NULL;
+    }
+
+    // Iterate over letters 'A' to 'Z' and build the message
+    for (char letter = 'A'; letter <= 'Z'; letter++) {
+        // Find player with the current letter
+        player_t* player = getPlayerByLetter(letter, game);
+        if (player != NULL) {
+            // Format the player's information and append to quitMessage
+            char playerInfo[100];
+            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51d\n", 
+                     player->playerLetter, player->goldCaptured, player->playerName);
+            strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
+        }
+    }
+
+    return quitMessage;  // Return the accumulated message
+}
+
+// Function to find a player by letter in the hashtable
+player_t* getPlayerByLetter(char letter, game_t* game)
+{   
+    player_t* foundPlayer = NULL;
+
+    // Use an array to hold the letter and pointer to foundPlayer
+    void* arg[2];
+    arg[0] = &letter;
+    arg[1] = &foundPlayer;
+
+    // Iterate through the hashtable to find the player with the matching letter
+    hashtable_iterate(game->players, arg, getPlayerByLetterHelper);
+
+    // Return the found player or NULL if not found
+    return foundPlayer;
+}
+
+// Helper function for hashtable iteration to find a player by letter
+void getPlayerByLetterHelper(void* arg, const char* key, void* item)
+{   
+    // Retrieve the letter and pointer to foundPlayer from the arg array
+    char targetLetter = *(char*)(((void**)arg)[0]);
+    player_t** foundPlayerPtr = (player_t**)(((void**)arg)[1]);
+
+    player_t* player = (player_t*)item;
+
+    // Check if the player's letter matches the target letter
+    if (player->playerLetter == targetLetter) {
+        *foundPlayerPtr = player;  // Set the found player via the pointer
+    }
+}
 
 
+//printf("%-2c %10d %-10s\n", 'A' + i, scores[i], players[i]);
 
 
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 

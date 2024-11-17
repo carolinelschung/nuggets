@@ -1,0 +1,336 @@
+START OF LOG
+message_init: ready at port '42866'
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+PLAY cc
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+OK A
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GRID 7 32
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 0 0 250
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+   
+  #....*.*.*.**.*.*.**......#   
+  |...**....*...*.*.....*.*.|   
+  |....@*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY h
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+   
+  #....*.*.*.**.*.*.**......#   
+  |...**....*...*.*.....*.*.|   
+  |...@.*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 0 0 250
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY k
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+   
+  #....*.*.*.**.*.*.**......#   
+  |...@*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 10 10 240
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY k
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+   
+  #...@*.*.*.**.*.*.**......#   
+  |....*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 10 10 240
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY l
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+   
+  #....@.*.*.**.*.*.**......#   
+  |....*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 7 17 233
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY L
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................#@  
+  |.........................|   
+  |.........................|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY h
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................@#  
+  |....*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY h
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #........................@##  
+  |....*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY j
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |....*....*...*.*.....*.*@|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY k
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #........................@##  
+  |....*....*...*.*.....*.*.|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY k
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY j
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |....*....*...*.*.....*.*@|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 5 95 155
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY H
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |@........................|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 11 159 91
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY k
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #@........................##  
+  |.........................|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 11 159 91
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY j
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |@........................|   
+  |.....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 11 159 91
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY j
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |.........................|   
+  |@....*..****.**.....**...|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 11 159 91
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_loop: message ready on socket
+message_loop: FROM 10.81.0.141:49526
+message_loop: 1 lines:
+KEY L
+message_send: TO 10.81.0.141:49526
+message_send: 8 lines:
+DISPLAY
+                                
+  +---------------#---------+#  
+  #.........................##  
+  |.........................|   
+  |........................@|   
+  +---------------#---------+   
+                                
+
+message_send: TO 10.81.0.141:49526
+message_send: 1 lines:
+GOLD 9 250 0
+message_send: TO 10.81.0.141:49526
+message_send: 2 lines:
+QUIT GAME OVER:
+A         250 250                                                
+
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
+message_send: error sending to datagram socket: Invalid argument
