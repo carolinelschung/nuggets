@@ -205,7 +205,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
         /* Process the key command (e.g., player movement)*/
 
         // Array of valid controls
-        char valid_chars[] = "QljkyubnLJKYUBNq";
+        char valid_chars[] = "QhljkyubnHLJKYUBN";
 
         //Checking if it's a valid key;
         if (strchr(valid_chars, key)) {
@@ -277,6 +277,9 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                         fflush(stdout);
                        
                         message_send((game->activePlayers[i]), message);
+                        char gold[12];
+                        sprintf(gold, "GOLD %d %d %d", 0, player->goldCaptured, game->goldRemaining);
+                        message_send(game->activePlayers[i], gold);
                     } 
                 }
                 char first_part[] = "DISPLAY\n";
