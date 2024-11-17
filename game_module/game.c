@@ -52,10 +52,10 @@ game_t* game_init(FILE* mapFile, int seed)
     game->players = hashtable_new(27);
 
 
-    // initialize activePlayers array
-    for (int i = 0; i < MaxPlayers; i++) {
-        game->activePlayers[i] = NULL; // Zero-initialize each `addr_t` element
-    }
+    // // initialize activePlayers array
+    // for (int i = 0; i < MaxPlayers; i++) {
+    //     game->activePlayers[i] = NULL; // Zero-initialize each `addr_t` element
+    // }
 
     // Initialize player letters
     for (int i = 0; i < 26; i++) {
@@ -121,7 +121,11 @@ bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)
     }
 
     // Attempt to validate and move the player
-    return success = validateAndMove(game, player, x, y);
+    success = validateAndMove(game, player, x, y);
+    printf("Success?: %d", success);
+    
+    return success;
+    
 }
 
 
@@ -240,14 +244,17 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
 {
     player_t* player = mem_malloc(sizeof(player_t));
     for (int i = 0; i < 26; i++) {
-        if (game->activePlayers[i] == NULL) {
-            game->activePlayers[i] = &address;
+        printf("Address is: %s\n", message_stringAddr(game->activePlayers[i]));
+        if (!(message_isAddr(game->activePlayers[i]))) {
+            game->activePlayers[i] = address;
             player->address = address;
             player->playerLetter = game->playerLetters[i];
             player->playerName = playerName;
             game->activePlayersCount+=1;
             hashtable_insert(game->players, message_stringAddr(address), player);
 
+            printf("THis is in player init %s\n", message_stringAddr(address));
+            fflush(stdout);
             int x, y;
             player->playerMap = map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight);
             player->xPosition = x;
@@ -419,10 +426,10 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     // It fails after printing this line
     printf("x %d, y %d\n", proposedX, proposedY);
     
-    char* visibleMap = mem_malloc(sizeof(char) * strlen(game->map));
+    char* visibleMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(player->playerMap, visibleMap);
-    
+
     return true;
 }
 

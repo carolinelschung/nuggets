@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
       return 1;
   }
 
-  game_test(game);
+  //game_test(game);
 
   bool success = message_loop(game, 0, NULL, handleInput, handleMessage);
 
@@ -139,6 +139,10 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
 
                 printf("New player joining: %s\n", acceptedName);
                 player_t* player = game_playerInit(game, from, acceptedName);
+                if (player == NULL) {
+                    printf("Player not initialized properly\n");
+                    fflush(stdout);
+                }
                 char response[5];
                 sprintf(response, "OK %c", player->playerLetter);
                 message_send(from, response);
@@ -148,10 +152,16 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 char gold[12];
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
                 message_send(from, gold);
-                char first_part[] = "DISPLAY\n\n\n";
+                char first_part[] = "DISPLAY\n";
                 char* map = map_decode(player->playerMap, game);
+                printf("Map decoded:\n");
+                fflush(stdout);
+                printf("%s\n", player->playerMap);
+                fflush(stdout);
                 char message[message_MaxBytes];
                 snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                printf("%s\n", player->playerMap);
+                fflush(stdout);
                 message_send(from, message);
                 
             } 
@@ -192,9 +202,12 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
     else if (strncmp(buf, "KEY ", 4) == 0) {
         char key = buf[4];
         printf("Key received from player: %c\n", key);
-        // Process the key command (e.g., player movement)
+        /* Process the key command (e.g., player movement)*/
+
         // Array of valid controls
         char valid_chars[] = "QljkyubnLJKYUBNq";
+
+        //Checking if it's a valid key;
         if (strchr(valid_chars, key)) {
             printf("The keystroke is valid\n");
             fflush(stderr);
@@ -212,27 +225,58 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
             // }
             // need a boolean here to check whether the move was valid or not
             // It fails inside the helper function of game_playerMove
+            int num_gold_remaining = game->goldRemaining;
             bool valid = game_playerMove(from, game, key);
+            int num_new_gold_remaining = game->goldRemaining;
 
+            /*if new_gold_remaining is not equal to num_gold_remaining, 
+            we wanna send gold message to all the clients as well in the loop */
+            printf("{%d}\n", valid);
+            fflush(stdout);
+            
             if (valid) {
-                for (int i = 0; i < 26; i++) {
-
+                printf("{%d--Valid}\n", valid);
+                fflush(stdout);
+                for (int i = 0; i < MaxPlayers; i++) {
+                    
+                    printf("Entered for loop %d\n", i);
+                    fflush(stdout);
                     // Needs to be fixed || game->activePlayers[i] != "-"
-                    if (game->activePlayers[i] != NULL || strcmp(message_stringAddr(*(game->activePlayers[i])), "-")) {
+                    if ((message_isAddr(game->activePlayers[i])) ) {
+                        
+                        printf("Entered if loop %d\n", i);
+                        fflush(stdout);
 
-                        // char first_part[] = "DISPLAY\n\n\n";
-                        // char* map = map_decode(game->map, game);
-                        // char message[message_MaxBytes];
-                        // snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                        // message_send(from, message);
-                        //send message
                         char first_part[] = "DISPLAY\n";
-                        player_t* player = hashtable_find(game->players, message_stringAddr(*(game->activePlayers[i])));
+                        printf(" first part assigned \n");
+                        fflush(stdout);
+                        // printf("Address:\n %s\n", message_stringAddr((game->activePlayers[i])));
+
+                        player_t* player = hashtable_find(game->players, message_stringAddr((game->activePlayers[i])));
+                        // printf("%s\n", (game->activePlayers[i]));
+                        printf("\n%s\n", message_stringAddr((game->activePlayers[i])));
+                        fflush(stdout);
+                        if (player == NULL) {
+                            printf("Unsuccessful fetch\n");
+                            fflush(stdout);
+                        }
+                        printf("player t assigned \n");
+                        fflush(stdout);
+                        printf("player map:\n\n");
+                        fflush(stdout);
+                        printf("%s",player->playerMap);
+                        fflush(stdout);
                         char* map = map_decode(player->playerMap, game);
+                        printf("map declared\n");
+                        fflush(stdout);
                         char message[message_MaxBytes];
+                        printf("Message Declared");
+                        fflush(stdout);
                         snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+                        printf("Message Assigned");
+                        fflush(stdout);
                        
-                        message_send(*(game->activePlayers[i]), message);
+                        message_send((game->activePlayers[i]), message);
                     } 
                 }
                 char first_part[] = "DISPLAY\n";
@@ -242,9 +286,15 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 message_send(game->spectatorAddress, message);
 
             }
+
+            /*Sending the game over message*/
+            if (game->goldRemaining == 0) {
+
+            }
             // message_send(address, "DISPLAY")
             //}
-        } else {
+        } 
+        else {
             message_send(from, "ERROR : Not a valid input");
         }
     } 

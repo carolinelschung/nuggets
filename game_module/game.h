@@ -44,7 +44,7 @@ typedef struct game {
     int encodedMapLength;
     hashtable_t* players;
     hashtable_t* goldPileAmounts;
-    addr_t* activePlayers[MaxPlayers]; // 26 max players
+    addr_t activePlayers[MaxPlayers]; // 26 max players
     int activePlayersCount;
     bool hasSpectator;
     addr_t spectatorAddress;
