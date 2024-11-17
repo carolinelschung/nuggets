@@ -20,16 +20,15 @@
 #include "message.h"
 #include "log.h"
 
-#define MAX_NAME_LENGTH 50 // max number of chars in playerName
-
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
 typedef struct client {
   addr_t server;
-  char statusLine[1000];
+  char* statusLine;
   char playerSymbol;
   bool isSpectator;
   bool quitting; 
+  char quitMessage[7000];
 } client_t;
 
 /************* function prototypes ************/
@@ -46,7 +45,7 @@ static void handle_display_message(const char* message);
 bool handle_client_input(void* arg);
 void displayStatus(const char* message);
 void updateDisplay(char* gameState);
-/************************************************** */
+/***************************************************/
 
 
 /******************* main ********************/
@@ -55,6 +54,15 @@ int main(int argc, char* argv[])
   client_t* client = malloc(sizeof(client_t));
   if (client == NULL) {
     fprintf(stderr, "Error: Memory allocation failed\n");
+    exit(1);
+  }
+  // Initialize the allocated memory to zero
+  memset(client, 0, sizeof(client_t));
+
+  client->statusLine = malloc(message_MaxBytes);
+  if (client->statusLine == NULL) {
+    fprintf(stderr, "Error: Memory allocation failed for statusLine\n");
+    free(client);
     exit(1);
   }
 
@@ -73,9 +81,10 @@ int main(int argc, char* argv[])
   bool ok = message_loop(client, 0, NULL, handle_client_input, handle_server_message);
 
   message_done();
-  log_done();
+  // log_done();
+  free(client->statusLine);
   free(client);
-  endwin(); // stop ncurses
+  // endwin(); // stop ncurses
 
   return ok? 0 : 1;
 }
@@ -105,10 +114,6 @@ void parseArgs(client_t* client, int argc, char* argv[])
   // determine if player or spectator
   if (argc == 4) { // player
     client->isSpectator = false; // fourth arg indicates player                        
-    if (strlen(argv[3]) > MAX_NAME_LENGTH) {
-      fprintf(stderr, "Error: Player name length may not exceed 50 characters\n");
-      exit(1); // invalid command line args
-    }
     char message[message_MaxBytes];
     sprintf(message, "PLAY ");
     strcat(message, argv[3]);
@@ -135,6 +140,15 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
 {
   client_t* client = (client_t*) arg;
 
+  if (strncmp(message, "QUIT ", strlen("QUIT ")) == 0) {
+    const char* me = "cc";
+    log_s("HANDLING QUIT %s", me);
+    // fprintf("handling\n");
+    // fflush(stdout);
+    handle_quit_message(message);
+    return true; // stop looping
+  }
+
   if (message == NULL) {
     fprintf(stderr, "Received NULL message from server\n");
     return false;
@@ -150,10 +164,10 @@ static bool handle_server_message(void* arg, const addr_t from, const char* mess
   else if (strncmp(message, "OK ", strlen("OK ")) == 0) {
     handle_ok_message(client, message);
   }
-  else if (strncmp(message, "QUIT ", strlen("QUIT ")) == 0) {
-    handle_quit_message(message);
-    return true; // stop looping
-  }
+  // else if (strncmp(message, "QUIT ", strlen("QUIT ")) == 0) {
+  //   handle_quit_message(message);
+  //   return true; // stop looping
+  // }
   else if (strncmp(message, "ERROR", strlen("ERROR")) == 0) {
     handle_error_message(client, message);
   }
@@ -212,29 +226,34 @@ void handle_gold_message(client_t* client, const char* message)
   // n - amount collected in pile
   // p - amount in purse
   // r - gold remaining in game
-  int n; 
-  int p;
-  int r;
+  int n, p, r;
 
   // read the message for GOLD n p r format
   if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
-    
+    /************************** HELP!!!!!!!!!!!!!!!!!! */
+    char* goldStatus = malloc(sizeof(char) * message_MaxBytes);
     // write status line for spectator
     if (client->isSpectator) {
-      sprintf(client->statusLine, "Spectator: %d nuggets unclaimed.", r);
+      sprintf(goldStatus, "Spectator: %d nuggets unclaimed.", r);
     }
     else {
-      sprintf(client->statusLine, "Player %c has %d nuggets (%d nuggets unclaimed). ", client->playerSymbol, p, r);
+      sprintf(goldStatus, "Player %c has %d nuggets (%d nuggets unclaimed).", client->playerSymbol, p, r);
     }
 
+    client->statusLine = goldStatus;
+
     // update status line if player collects gold
+    char gold_collected[strlen("GOLD received: ") + 5];
     if (n > 0) {
-      char gold_collected[strlen("GOLD received: ") + 5];
-      sprintf(gold_collected, " GOLD received: %d", n);
-      strcat(client->statusLine, gold_collected);
+      sprintf(gold_collected, "GOLD received: %d", n);
+      char* totalStatus = malloc(sizeof(char) * (strlen(goldStatus) + strlen(gold_collected) + 1));
+      sprintf(totalStatus, "%s %s", client->statusLine, gold_collected);
+      displayStatus(totalStatus);
     }
-    
-    displayStatus(client->statusLine);
+    else{
+      displayStatus(client->statusLine);
+    }
+
     refresh();
   }
   else {
@@ -265,8 +284,10 @@ void handle_ok_message(client_t* client, const char* message)
 
 /******************* handle_quit_message *****************/
 /* see client.h for description */
+// char* quitMessage
 static void handle_quit_message(const char* message)
 {
+  printf("In quit message");
   // end ncurses
   endwin();
 
@@ -276,22 +297,33 @@ static void handle_quit_message(const char* message)
   if (quitExplanation != NULL) {
     // skip "QUIT " by adding 5
     quitExplanation += 5;
-    printf("%s", quitExplanation);
+    printf("%s\n", quitExplanation);
+    // printf("%ld", strlen(quitExplanation));
   }
+  // *(client->quitMessage) = '\0';
+  // if (client->quitMessage != NULL) {
+  //   strcpy(client->quitMessage, message + strlen("QUIT "));
+  // }
 }
 
 /******************* handle_error_message *****************/
 /* see client.h for description */
 static void handle_error_message(client_t* client, const char* message)
 {
-  // clear the old statusLine
-  memset(client->statusLine, 0, strlen(client->statusLine));
-  // copy the new message into the StatusLine
-  strcpy(client->statusLine, message);
-  // put error message on screen
-  mvprintw(0, 0, "Received error message: %s\n", message);
+  // make pointer to start of error explanation
+  // start at beginning of error message from server 
+  char* errorExplanation = strstr(message, "ERROR ");
+  if (errorExplanation != NULL) {
+    // skip "ERROR " by adding 6
+    errorExplanation += 6;
+  }
 
-  displayStatus(client->statusLine);
+  char* totalStatus = malloc(sizeof(char) * (strlen(errorExplanation) + strlen(client->statusLine) + 1));
+
+  sprintf(totalStatus, "%s %s", client->statusLine, errorExplanation);
+  // strncat(client->statusLine, errorExplanation, message_MaxBytes);
+
+  displayStatus(totalStatus);
   refresh();
 }
 
@@ -324,32 +356,33 @@ bool handle_client_input(void* arg)
   // cast arg to client struct pointer
   client_t* client = (client_t*) arg;
 
-  if (!message_isAddr(client->server)) {
-    fprintf(stderr, "handleInput called without a correspondent.\n");
-    return true;
+  if (!client->isSpectator) {
+    if (!message_isAddr(client->server)) {
+      fprintf(stderr, "handleInput called without a correspondent.\n");
+      return true;
+    }
+    
+    // if (client->quitting) {
+    //   // endwin();
+    //   return true;
+    // }
+
+    // read one character from stdin
+    inputCharacter = getch();
+    if (inputCharacter == EOF) { // check to make sure not EOF
+      message_send(client->server, "KEY Q");
+      return true; // if it is stop looping
+    } 
+
+    // if (inputCharacter == 'Q') { 
+    //   client->quitting = true;              
+    // }
+
+    // create the message to server
+    snprintf(message, sizeof(message), "KEY %c", inputCharacter);
+
+    message_send(client->server, message);
   }
-  
-  // lets client communicate with server a final time
-  if (client->quitting) {
-    endwin();
-    return true;
-  }
-
-  // read one character from stdin
-  inputCharacter = getch();
-  if (inputCharacter == EOF) { // check to make sure not EOF
-    return true; // if it is stop looping
-  } 
-
-  if (inputCharacter == 'Q') { 
-    client->quitting = true;              
-  }
-
-
-  // create the message to server
-  snprintf(message, sizeof(message), "KEY %c", inputCharacter);
-
-  message_send(client->server, message);
 
   return false; // keep the message loo;p going
 }
@@ -375,12 +408,12 @@ void updateDisplay(char* gameState)
   }
 
   // clear the current screen
-  for (int row = 1; row < LINES; row++) {
-    move(row, 0);
-    clrtoeol();
+  for (int row = 1; row < LINES; row++) { // for every line below the status line
+    move(row, 0); // go the the start of the line with the cursor
+    clrtoeol(); // clear it
   }
 
-  // print the game state
+  // print the display 
   mvprintw(1, 0, "%s", gameState);
   refresh();
 }
