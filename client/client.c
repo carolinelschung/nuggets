@@ -287,7 +287,7 @@ void handle_ok_message(client_t* client, const char* message)
 // char* quitMessage
 static void handle_quit_message(const char* message)
 {
-  printf("In quit message");
+  // printf("In quit message");
   // end ncurses
   endwin();
 
