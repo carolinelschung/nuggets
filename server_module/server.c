@@ -264,6 +264,8 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                     *goldCapturedPtr = quittingPlayer->goldCaptured;
                     game->goldRemaining += quittingPlayer->goldCaptured;
 
+                    quittingPlayer->goldCaptured = 0; //drops the gold
+
                     hashtable_insert(game->goldPileAmounts, key, goldCapturedPtr);
                   } else {
                     game->map[indexToLeave] = '.';
