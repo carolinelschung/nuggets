@@ -14,7 +14,7 @@
 /*
 Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
 */
-void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR);
+void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR, game_t* game);
 
 /*
 Function that takes in a player's coordinates and the master map and outputs the visibleMap (only what the payer sees immediately)  

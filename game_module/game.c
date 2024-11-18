@@ -25,6 +25,7 @@
 #define GoldMaxNumPiles 30
 #define MaxPlayers 26
 #define MAX_LINE_LENGTH 1024  // Set a reasonable max line length based on map constraints
+#define MAX_NAME_LENGTH 50
 
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
@@ -67,6 +68,8 @@ game_t* game_init(FILE* mapFile, int seed)
 
     game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
     strcpy(game->mapWithNoPlayers, game->map);
+
+    game->activePlayersCount = 0;
 
     placeGold(game);
 
@@ -198,7 +201,7 @@ void game_test(game_t* game)
     int seed = 21;  // Example seed value
 
     // Pass addresses of x, y, and seed to allow modification in map_player_init
-    map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
+    map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight, game);
 
     printf("Player initialized at position: (%d, %d)\n", x, y);
 
@@ -275,39 +278,70 @@ void game_delete(game_t* game) {
     mem_free(game);
 }
 
-player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
-{
+player_t* game_playerInit(game_t* game, addr_t address, char* playerName) {
+    // Allocate memory for a new player
     player_t* player = mem_malloc(sizeof(player_t));
+    if (player == NULL) {
+        fprintf(stderr, "Error: Failed to allocate memory for player.\n");
+        return NULL;
+    }
+
+    // Find an available spot in activePlayers
     for (int i = 0; i < 26; i++) {
-        printf("Address is: %s\n", message_stringAddr(game->activePlayers[i]));
-        if (!(message_isAddr(game->activePlayers[i]))) {
+        if (!message_isAddr(game->activePlayers[i])) {  // Check if the slot is empty
             game->activePlayers[i] = address;
             player->address = address;
             player->playerLetter = game->playerLetters[i];
-            player->playerName = playerName;
-            game->activePlayersCount+=1;
+            game->activePlayersCount++;
+
+            // Allocate memory for playerName and copy it safely with null termination
+            player->playerName = mem_malloc(MAX_NAME_LENGTH + 1);
+            if (player->playerName != NULL) {
+                strncpy(player->playerName, playerName, MAX_NAME_LENGTH);
+                player->playerName[MAX_NAME_LENGTH] = '\0';  // Ensure null termination
+            } else {
+                fprintf(stderr, "Error: Failed to allocate memory for playerName.\n");
+                mem_free(player);  // Free player memory if name allocation fails
+                return NULL;
+            }
+
+            // Insert player into the hashtable using the address as the key
             hashtable_insert(game->players, message_stringAddr(address), player);
 
-            printf("THis is in player init %s\n", message_stringAddr(address));
+            printf("New player initialized with name: %s, letter: %c\n", player->playerName, player->playerLetter);
             fflush(stdout);
+
+            // Initialize player's position using map_player_init
             int x, y;
-            map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight);
-            player->playerMap = mem_malloc(sizeof(char)*(strlen(game->map)+1));
-            map_get_visible(x, y, game->map, player->playerMap, game->mapWidth, game->mapHeight);
+            map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight, game);
             player->xPosition = x;
             player->yPosition = y;
 
-            //adds playerLetter/your indicator to respective maps
-            /*int index = y * game->mapWidth + x;
-            game->map[index] = player->playerLetter;
-            player->playerMap[index] = '@';*/
+            // Allocate and initialize player map
+            player->playerMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
+            if (player->playerMap == NULL) {
+                fprintf(stderr, "Error: Failed to allocate memory for playerMap.\n");
+                mem_free(player->playerName);
+                mem_free(player);
+                return NULL;
+            }
 
-            return player;
-            
+            map_get_visible(x, y, game->map, player->playerMap, game->mapWidth, game->mapHeight);
+
+            // Add player’s letter to the map and player's map
+            int index = y * game->mapWidth + x;
+            game->map[index] = player->playerLetter;
+            player->playerMap[index] = '@';
+
+            return player;  // Successfully initialized player
         }
     }
+
+    // If no slot was available, free allocated memory and return NULL
+    mem_free(player);
     return NULL;
 }
+
 
 
 /************* HELPER FUNCTIONS *****************/
