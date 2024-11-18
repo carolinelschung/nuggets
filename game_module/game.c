@@ -37,7 +37,7 @@ static void print_item(FILE* fp, const char* key, void* item);
 player_t* getPlayerByLetter(char letter, game_t* game);
 void getPlayerByLetterHelper(void* arg, const char* key, void* item);
 
-game_t* game_init(FILE* mapFile, int seed)
+game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)
 {
     game_t* game = mem_malloc(sizeof(game_t));
 
@@ -49,9 +49,13 @@ game_t* game_init(FILE* mapFile, int seed)
     }
 
     game->seed = seed;
+    game->goldRemaining = gold;
+    game->minGoldPiles = minGoldPiles;
+    game->maxGoldPiles = maxGoldPiles;
+    game->plain = plain;
+
 
     game->map = encodeMap(mapFile, game);
-    game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
     game->nextAvailableLetter = 'A';
@@ -190,70 +194,6 @@ void game_print(const game_t* game)
             putchar('\n');
         }
     }
-}
-
-
-
-/**************** game_test ****************/
-/* test scenario for game and map */
-void game_test(game_t* game)
-{
-    
-    int x, y;
-    int seed = 21;  // Example seed value
-
-    // Pass addresses of x, y, and seed to allow modification in map_player_init
-    map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight, game);
-
-    printf("Player initialized at position: (%d, %d)\n", x, y);
-
-    char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
-
-    visibleMap[y*game->mapWidth+x] = '@';
-
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    char* mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
-
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-    x = x - 1;
-    y = y + 1;
-    visibleMap[y*game->mapWidth+x] = '@';
-
-    char* previousMap = mem_malloc((1+strlen(visibleMap))*sizeof(char));
-    strcpy(previousMap, visibleMap);
-
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
-
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-    x = x - 1;
-    y = y + 1;
-    visibleMap[y*game->mapWidth+x] = '@';
-
-    strcpy(previousMap, visibleMap);
-
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
-
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-    x = x + 20;
-    visibleMap[y*game->mapWidth+x] = '@';
-
-    strcpy(previousMap, visibleMap);
-
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
-
 }
 
 void game_delete(game_t* game) {
@@ -437,42 +377,32 @@ void placeGold(game_t* game) {
         return;
     }
 
-    int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
-    int minGoldPerPile = 1;  // Ensure each pile has at least 1 gold
-    int remainingGold = 250 - (minGoldPerPile * numPiles);  // Initial leftover after assigning min to each pile
+    int numPiles = game->minGoldPiles + rand() % (game->maxGoldPiles - game->minGoldPiles + 1);
+    int remainingGold = game->goldRemaining - numPiles;
 
     game->goldPileAmounts = hashtable_new(numPiles);
 
     int pileValues[numPiles];
-
-    // Start each pile with the minimum gold amount
     for (int i = 0; i < numPiles; i++) {
-        pileValues[i] = minGoldPerPile;
+        pileValues[i] = 1;
     }
 
-    // Distribute the remaining gold randomly among the piles
+    // Distribute the remaining gold among the piles
     while (remainingGold > 0) {
         int randomPile = rand() % numPiles;
         pileValues[randomPile]++;
         remainingGold--;
     }
 
-    // Place each pile of gold on the map at random positions
     for (int i = 0; i < numPiles; i++) {
         int* pileSizePtr = malloc(sizeof(int));
-        if (pileSizePtr == NULL) {
-            fprintf(stderr, "Error: Memory allocation failed for pileSize.\n");
-            return;
-        }
         *pileSizePtr = pileValues[i];
-
-        // Find a random empty spot on the map
         bool spotFound = false;
-        char key[12];
         while (!spotFound) {
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
                 game->map[randIndex] = '*';
+                char key[12];
                 snprintf(key, sizeof(key), "%d", randIndex);
                 hashtable_insert(game->goldPileAmounts, key, pileSizePtr);
                 spotFound = true;
@@ -483,6 +413,7 @@ void placeGold(game_t* game) {
 
     hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
+
 
 char* game_getFinalScores(game_t* game)
 {   
@@ -558,6 +489,10 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         return false;
     }
 
+    if (strchr(valid_chars, proposedTile) && game->plain) {
+        return false;
+    }
+
     game->map[currentIndex] = currentTilePlayerIsOn;
 
     if (game->map[proposedIndex] == '*') {
@@ -580,7 +515,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         }
     }
 
-    if (strchr(valid_chars, proposedTile)) {
+    if (strchr(valid_chars, proposedTile) && !game->plain) {
         int index = proposedTile - 'A';  // Calculate the index in activePlayers based on the letter
         const char* stringAddress = message_stringAddr(game->activePlayers[index]);
         player_t* playerMovedOnto = hashtable_find(game->players, stringAddress);
