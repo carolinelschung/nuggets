@@ -41,6 +41,9 @@ server.o: server.c server.h ../game_module/game.h ../map_module/map.h
 # Phony targets
 .PHONY: clean all
 
+# For memory-leak tests
+VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
+
 # Clean up generated files
 clean:
 	rm -f server.o $(EXE)
@@ -48,3 +51,5 @@ clean:
 	$(MAKE) -C ../game_module clean
 	$(MAKE) -C ../libcs50 clean
 	$(MAKE) -C ../support clean
+	rm -f *~ *.log
+	
