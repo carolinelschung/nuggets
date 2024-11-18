@@ -166,7 +166,7 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
 {
   client_t* client = (client_t*) arg;
 
-  if (message == NULL) {
+  if (message == NULL) { // defensive check 
     log_e("Received NULL message from server");
     fprintf(stderr, "Received NULL message from server\n");
     return false;
@@ -176,7 +176,6 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
 
   if (strncmp(message, "GRID ", strlen("GRID ")) == 0) {
     handleGridMessage(message);
-
   }
   else if (strncmp(message, "GOLD ", strlen("GOLD ")) == 0) {
     handleGoldMessage(client, message);
@@ -199,7 +198,7 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
   }
   refresh();
   log_s("Message (%s) was handled correctly!", message);
-  return false;
+  return false; // keep the loop going
 }
 
 /******************* handleGridMessage *****************/
@@ -252,7 +251,6 @@ void handleGoldMessage(client_t* client, const char* message)
 
   // read the message for GOLD n p r format
   if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
-    /************************** HELP!!!!!!!!!!!!!!!!!! */
     char* goldStatus = mem_malloc(message_MaxBytes);
     // write status line for spectator
     if (client->isSpectator) {
@@ -264,22 +262,20 @@ void handleGoldMessage(client_t* client, const char* message)
     
     strcpy(client->statusLine, goldStatus); // copy gold status into status line 
 
-    // update status line if player collects gold
+    // update status line if player collects gold to show 'GOLD received: n'
     char gold_collected[strlen("GOLD received: ") + 5];
     if (n > 0) {
       sprintf(gold_collected, "GOLD received: %d", n);
-      char* totalStatus = mem_malloc(message_MaxBytes);
+      char totalStatus[strlen(client->statusLine) + strlen(gold_collected) + 1];
       sprintf(totalStatus, "%s %s", client->statusLine, gold_collected);
       displayStatusLine(totalStatus);
       refresh();
-      mem_free(totalStatus);
     }
     else{
       displayStatusLine(client->statusLine);
     }
 
-    
-    refresh();
+    refresh(); 
     mem_free(goldStatus);
   }
   else {
@@ -339,7 +335,7 @@ static void handleErrorMessage(client_t* client, const char* message)
   }
 
   char* totalStatus = mem_malloc(message_MaxBytes);
-
+  // add the error explanation to the current statusline 
   sprintf(totalStatus, "%s %s", client->statusLine, errorExplanation);
 
   displayStatusLine(totalStatus);
@@ -352,10 +348,13 @@ static void handleErrorMessage(client_t* client, const char* message)
 static void handleDisplayMessage(const char* message)
 {
   // skip the "DISPLAY\n" portion of the message to retrieve the display itself
-  const char* displayMessage = message + strlen("DISPLAY\n");
+  char* displayMessage = strstr(message, "DISPLAY\n");
+  if (displayMessage != NULL) {
+    displayMessage += 9; // skip nine chars for "DISPLAY\n"
+  }
 
   // copy the game state
-  char* gameState = mem_malloc(strlen(displayMessage) + 1);
+  char* gameState = mem_malloc(message_MaxBytes);
   if (gameState == NULL) {
     fprintf(stderr, "Error: Memory allocation failed for gameState\n");
     return;
@@ -364,7 +363,6 @@ static void handleDisplayMessage(const char* message)
 
   updateDisplay(gameState);
 
-  // mem_free(displayMessage);
   mem_free(gameState);
 }
 
@@ -402,6 +400,17 @@ bool handleClientInput(void* arg)
     snprintf(message, sizeof(message), "KEY %c", inputCharacter);
 
     message_send(client->server, message);
+  }
+  else { // if spectator, the only key you can press is Q
+    if (client->isQuitting) {
+      return true;
+    }
+
+    inputCharacter = getch();
+    if (inputCharacter == 'Q') {
+      client->isQuitting = true; // but don't return true to allow the loop one last loop
+      message_send(client->server, "KEY Q");
+    }
   }
 
   return false; // keep the message loo;p going
