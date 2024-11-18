@@ -455,7 +455,7 @@ char* game_getFinalScores(game_t* game)
         if (player != NULL) {
             // Format the player's information and append to quitMessage
             char playerInfo[100];
-            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51d\n", 
+            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
                      player->playerLetter, player->goldCaptured, player->playerName);
             strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
         }
