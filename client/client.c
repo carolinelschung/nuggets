@@ -248,7 +248,6 @@ void handleGoldMessage(client_t* client, const char* message)
   // r - gold remaining in game
   int n, p, r;
 
-
   // read the message for GOLD n p r format
   if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
     char* goldStatus = mem_malloc(message_MaxBytes);
@@ -281,7 +280,6 @@ void handleGoldMessage(client_t* client, const char* message)
   else {
     fprintf(stderr, "Error: Gold message from server could not be read.\n");
   }
-
 }
 
 /******************* handleOkMessage *****************/
@@ -306,7 +304,6 @@ void handleOkMessage(client_t* client, const char* message)
 
 /******************* handleQuitMessage *****************/
 /* see client.h for description */
-// char* quitMessage
 static void handleQuitMessage(const char* message)
 {
   // end ncurses
