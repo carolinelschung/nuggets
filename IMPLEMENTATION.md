@@ -12,530 +12,251 @@ We avoid repeating information that is provided in the requirements spec.
 #### Server Side:
 
 - Nafis 
-<<<<<<< HEAD
-    - readMessage Module
-    - sendMessage Module
-=======
-    - Message Module
+    - `Server Module` and Messaging
         - Handles messaging between server side and client side
->>>>>>> 4b1105c (Implementation specifications updated)
 - Joe 
-    - Game Module
+    - `Game Module`
         - Handles game initialization
         - Handles game state updates whenever literally anything happens from any client
 - Anya
-     - Map module
+    - `Map Module`
     - Map conversion from .txt to array and back
 Set of functions that manage maps: take in a map, a command, and some player info return a new map 
 
 #### Client Side:
 
 - CC
-    - readMessage Module
-    - sendMessage Module
+    - `Client Module`
 Can remove gameStatus
 Make sure to handle mal messages
-<<<<<<< HEAD
 
-=======
->>>>>>> 4b1105c (Implementation specifications updated)
-
-## Player
+## Client Module
 ### Data Structures
-##### Client
-'Client_start' holds basic info about the user, including the hostname of the server, the port number, the username of the client (if they are using one), and if they are a spectator
+Holds the primary client state, including server details, game status, and player symbol.
 ```c
-typedef struct {
-    char* hostname;       
-    int port;              
-    char* playerName;  
-    bool isSpectator;    
-} client_start_t;
+typedef struct client {
+  addr_t server;
+  char* statusLine;
+  char playerSymbol;
+  bool isSpectator;
+  bool quitting; 
+  char quitMessage[7000];
+} client_t;
 ```
 
-##### Client Game State
-Holds information about the current game state, collected via messsages from server.  Information includes: number of rows and columns in the grid, amount of gold collected by player and remaining in the map, the display grid as a string, and the player symbol on the screen
+### Definition of function protoytypes and Pseudocode
+
+##### `void parseArgs(client_t* client, int argc, char* argv[])`
+Validates command-line arguments for client and configures initial state based on the type (player or spectator).
+```c 
+Check arguments length and parse hostname, port, and optional username
+If player, send "PLAY <username>" to server
+If spectator, send "SPECTATE" to server
+```
+
+##### `bool handle_server_message(void* arg, const addr_t from, const char* message)`
+Processes messages from the server to update the client state or display relevant information.
 ```c
-typedef struct {
-    int num_rows;            
-    int num_cols;            
-    int goldCollected;     
-    int goldRemaining;     
-    char* display;  
-    char* statusLine;   
-} client_game_state_t;
+If "GRID", set up grid dimensions
+If "GOLD", update player’s gold and status
+If "DISPLAY", update client’s map view
+If "QUIT", display quit message and stop loop
 ```
 
-### Definition of function protoytypes
-------------
-##### initialize_client
-The initialize_client function performs the following:
-1. Inititalizes logging and messaging modules.
-2. Validates command line arguments with parseArgs
-3. Sets up the server address
-4. Either sends 'PLAY' or 'SPECTATE' message
-5. Allocates memory for the game status line
+##### `bool handle_client_input(void* arg)`
+Processes keystrokes from the user, sends them to the server, and handles quit commands.
 ```c 
-bool initialize_client(client_t* client, client_game_state_t* state, char* serverAddress[], FILE* logFP, int argc, char* argv[]);
-```
-
-##### parseArgs
-Validates command line arguments:
-1. Checks to make sure command-line arguments are provided.
-2. If playername is not provided, then isSpectator is true, and playername is empty, otherwise playername is set and isSpectator is false.
-```c 
-bool parseArgs(client_start_t* client, int argc, char* argv[]);
-```
-
-##### initialize_display
-Sets up the initial display and checks that the window is sufficiently large based on GRID message from server.
-```c
-bool initialize_display(client_game_state_t* state, int num_rows, int num_cols);
-```
-
-##### handle_server_message
-Processes messages from server in message_loop based on 'GRID', 'GOLD', 'DISPLAY', 'QUIT', 'KEY', and 'OK'
-```c 
-bool handle_server_message(client_game_state_t* state, const char* fromAddress, message_t* message);
+Get keystroke input from player
+If 'Q', send quit command
+If valid movement key, send move to server
 ```
 Each type of server message has its own helper function dedicated to it.
 
-##### handle_client_input
-Interpret keystrokes from stdin.
+##### `void initialize_display()`
+Sets up the display for the game, ensuring window dimensions are sufficient.
 ```c 
-bool handle_client_input(client_game_state_t* state);
+Set display mode to accept keystrokes without enter key
+Suppress echo to avoid displaying keystrokes
+Verify display dimensions for the game grid
+Clear screen if dimensions are sufficient
 ```
-
-----
-
-### Detailed pseudocode
-------
-##### initialize_client
-```text 
-initialize log
-set server addresss
-send PLAY or SPECTATE message
-allocate memory for status line
-```
-
-##### parseArgs
-```text 
-// validate commandline
-if argc < 3:
-    print to stderr "Usage: ./client hostname port [username (optional)]"
-    exit(nonzero)
-// initialize message module 
-
-client->hostname = argv[1]
-
-call message_init
-
-if argv[2] > 0:
-    client->port = argv[2]
-    print client port number
-else:
-    print to stderr "Error: Invalid port number"
-    exit(nonzero)
-
-// determine if player or spectator
-if argc == 4:
-    client->isSpectator = false
-    validate player name length
-    client->playerName = argv[3]
-else:
-    client->isSpectator = true
-    client->playerName = ""
-```
-
-##### initialize_Display
-```text
-set state's num_rows and num_cols
-if window size < needed size:
-    print "Error: Window size too small for grid"
-    return false
-allocate memory for display based on grid size
-Update dispay to show empty grid
-
-return true
-```
-
-##### handle_server_message
-```text 
-if message starts with 'GRID':
-    parse grid dimensions
-    update state->num_rows
-    update state->num_cols
-    call initialize_display with state 
-if message starts with 'GOLD':
-    update state->goldCollected
-    updated state->goldRemaining
-    update statusLine
-if message starts with 'DISPLAY':
-    copy message to display
-if message starts with 'OK':
-    log valid move
-if message starts with 'QUIT':
-    print quit message
-    clean up
-if message starts with 'ERROR':
-    add error message to status line
-```
-
-##### handle_client_input
-```text 
-get keystroke from user
-if key pressed is 'Q':
-    send 'KEY Q' to server
-if key is a valid movement key:
-    send 'KEY <movement key>' to server
-```
-
-### Testing Plan
-##### Unit Testing
-Test each of the functions seperately to verify their correct behavior.
-1. initialize_client & parseArgs:
-    * Verify that the initialize_client and parseArgs functions correctly handle valid and invalid inputs
-    * Test cases:
-        * Parses hostname, port, and playername (optional)
-        * Handles missing arguments and invalid arguments (like negative port number) by printing error and exiting
-        * Prints error message and exits when encoutering a playername that is too long
-2. handle_message:
-    * Verify that handle_message responds as expected to each server message type
-    * Test cases:
-        * GOLD messages: Parses grid message and initializes display with the given dimensions
-        * GOLD messages: Updates statusLine with player's current nugget count and unclaimed nuggets
-        * DISPLAY messages: Updates the display by printing the new display message
-        * QUIT messages: Exits gracefully and prints exit message
-        * ERROR messages: logs error message and adds to statusLine
-        * OK messages: logs valid messages
-3. initialize_display:
-    * Verify that inititalize_display initializes diapl correctly based on grid size
-    * Test cases:
-        * Check for valid grid sizes
-        * Check for successful memory allocation
-4. handle_input:
-    * Verify that handle_input correctly processes keystrokes and sends them to server in proper format
-    * Test cases:
-        * Valid movement keys send correct KEY messages to the server
-        * Invalid keys are logged as errors 
-
-##### Regression Testing
-Check to make sure game continues to work properly over time. Use a testing script to run games of varying lengths, including errors like invalid keys, invalid server messages, etc.
-
-##### Integration Testing
-Run a testing.sh that runs the client. First runs with a sequence of tests for invalid arguments, then a run of a full game with valgrind to test for leaks.  Then integrate with server by mimicking server messages, valid and invalid to confirm correct server message processing.
 
 ## Server
 
-### Data structures
+### Definition of function prototypes & Pseudocode
 
-
-### Definition of function prototypes
-
-
-
-A function to parse the command-line arguments, initialize the game struct, initialize the message module, and initialize analytics module.
-
-```c
-static int parseArgs(const int argc, char* argv[]);
+##### `FILE* parseArgs(int argc, char* argv[], int* seed, int* gold, int* minPiles, int* maxPiles, bool* plain)`
+Parses command-line arguments and initializes game parameters such as gold, map file, and player settings.
+```C
+Parse options for gold, min/max piles, seed, and map filename.
+If no map file is provided, print usage and exit.
+Open map file and return pointer to file handle.
 ```
-### Detailed pseudo code
 
-> For each function write pseudocode indented by a tab, which in Markdown will cause it to be rendered in literal form (like a code block).
-> Much easier than writing as a bulleted list!
-> For example:
+##### `bool handleInput(void* arg)`
+Handles server-side input commands such as status checks and quit.
 
-#### `parseArgs`:
+```C
+If input is "quit", print shutdown message and exit loop.
+If input is "status", print server status message.
+```
 
-	validate commandline
-	verify map file can be opened for reading
-	if seed provided
-		verify it is a valid seed number
-		seed the random-number generator with that seed
-	else
-		seed the random-number generator with getpid()
+##### `bool handleMessage(void* arg, const addr_t from, const char* buf)`
+Handles incoming messages from clients and updates game state accordingly.
 
+```C 
+If message is "PLAY", initialize player with unique letter and send grid and gold status.
+If message is "SPECTATE", handle spectator replacement if necessary.
+If message is "KEY <movement>", check validity of move and update game state.
+If game is over, send final scores to players and spectators.
+```
 ---
 
 ## Game module
 
 ### Data structures
-
-#### Game Struct
-
+`Game Structure`
+Represents a game and all real time game data;
 ```C
 typedef struct game {
-    char* map;
-<<<<<<< HEAD
-=======
-    int mapLength;
-    int mapWidth;
->>>>>>> 4b1105c (Implementation specifications updated)
-    hashtable_t* players;
-    player_t* activePlayers[];
-    int goldRemaning;
+    char* map;                    // Encoded game map
+    char* mapWithNoPlayers;       // Map without player locations
+    int mapWidth, mapHeight;      // Dimensions of the map
+    int encodedMapLength;         // Length of the encoded map string
+    int goldRemaining;            // Total gold left in the game
+    int minGoldPiles, maxGoldPiles; // Minimum and maximum number of gold piles
+    int activePlayersCount;       // Number of active players
+    bool plain;                   // Plain mode flag
+    hashtable_t* players;         // Hashtable of players by address
+    addr_t spectatorAddress;      // Address of the spectator (if any)
+    bool hasSpectator;            // Indicates if there's a spectator
+    addr_t activePlayers[26];     // Array of player addresses (A-Z)
+    char playerLetters[26];       // Array of player identifiers (A-Z)
+    char nextAvailableLetter;     // Next available letter for player assignment
 } game_t;
 ```
 
-#### Player Struct
+`Player Structure`
+Represents a player in the game, including position, map, and gold information
 ```C
 typedef struct player {
-    char* playerName;
-    char* playerMap;
-<<<<<<< HEAD
-=======
-    char* address;
->>>>>>> 4b1105c (Implementation specifications updated)
-    char role;
-    int xPosition;
-    int yPosition;
-    int goldCaptured;
-    bool isActive;
+    char* playerName;             // Player's chosen name
+    char* playerMap;              // Player's view of the map
+    addr_t address;               // Player's network address
+    char playerLetter;            // Player's letter identifier
+    int xPosition, yPosition;     // Player's coordinates
+    int goldCaptured;             // Total gold captured by player
+    int goldJustCaptured;         // Gold captured in the last move
+    bool isActive;                // Indicates if the player is active
 } player_t;
-```
-### Definition of function prototypes
 
-<<<<<<< HEAD
-`initializeGame`
-=======
-`game_init`
->>>>>>> 4b1105c (Implementation specifications updated)
-Initializes the game state, including map, players, and gold piles. 
+### Definition of function prototypes & Pseudocode
+
+##### `game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)`
+Initializes the game, including the map, players, and gold placement.
 ```C
-int initializeGame(const char* mapFile, int seed);
+Seed the random generator based on seed or process ID.
+Initialize player letter array and map by encoding map from the file.
+Randomly place gold on the map within min/max pile constraints.
+Return initialized game object.
 ```
 
-<<<<<<< HEAD
-`updateGameState`
-Updates the game state based on player actions or events.
+##### `bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)`
+Moves player to a new location if the move is valid and updates gold if collected.
 ```C
-void updateGameState(player_t* player, char action);
+Retrieve the player’s current position from `playerAddress`.
+Check if the desired move is valid based on map boundaries and obstacles.
+If valid:
+    - Update player position and adjust map accordingly.
+    - If the player collected gold, update gold count for the player and the game.
+Refresh all players’ views of the map.
+Return true if move was successful; false otherwise.
+
 ```
 
-`move`
-Modifies the encoded map string to move the player character to a requested location only if move is valid (no wall, no deadend, etc). Also checks if player moves onto gold. Returns new encoded visible map.
+##### `bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY)`
+Checks if a proposed move is valid, updates the map, and handles interactions like gold collection or player-to-player collisions.
 ```C
-char* move(char* currentVisibleMap, char moveType, int xPos, int yPos);
+Retrieve the tile at `proposedX` and `proposedY`.
+If tile is not walkable, return false.
+If tile contains gold, update player and game gold counts.
+If tile contains another player and game is not in plain mode, handle player collision.
+Update map with the player’s new position and return true.
 ```
 
-### Detailed pseudo code
-
-`initalizeGame`
-```
-encode map to string from mapfile
-place gold piles randomly on map
-initialize player hashtable in global game object
-initialize active players array in global game object
-intialize gold
-```
-
-`updateGameState`
-```
-receive player action
-switch (action):
-    case move:
-    check if move is valid:
-    if valid:
-        update player pos
-        check if player collected gold
-        if collected gold:
-            increment players gold
-            decrement gold remaining
-        refresh all players visible map
-    case quit:
-        deactivate player in players hashtable
-        remove player from active players array
-    if goldRemaining is zero:
-        end game and show results
+##### `void game_placeGold(game_t* game)`
+Randomly places gold piles across the map, ensuring the number of piles and total gold meet specified constraints.
+```C
+Calculate the number of gold piles between minGoldPiles and maxGoldPiles.
+Initialize each pile with at least one gold.
+Randomly distribute remaining gold among piles.
+For each pile:
+    Randomly select a walkable tile ('.') on the map and place the gold.
+Update game’s goldRemaining to reflect total placed gold.
 ```
 
+##### `player_t* game_playerInit(game_t* game, addr_t address, char* playerName)`
+Initializes a new player and assigns them a unique letter and starting position on the map.
+```C
+Allocate memory for the new player struct.
+If game has reached the max player limit (26 players), return NULL.
+Assign the next available letter to the player.
+Set playerName, xPosition, and yPosition.
+Update game->activePlayers with the player’s address and letter.
+Initialize player’s view of the map and mark their starting position.
+Return the initialized player struct.
+```
+
+##### `char* game_getFinalScores(game_t* game)`
+Compiles and formats the final scores of all players for display at the end of the game.
+```C
+Allocate a message buffer for the final scores.
+For each player (A to Z):
+    Retrieve player’s captured gold count and format as "Player <letter>: <gold captured>".
+Append each player’s score to the message buffer.
+Return the formatted final scores string.
+```
+
+##### `void game_delete(game_t* game)`
+Cleans up and frees all allocated resources associated with the game.
+```C
+Free memory for the game map and mapWithNoPlayers.
+For each player in the hashtable:
+    Free player-specific memory such as name and map.
+Free the players hashtable and other dynamically allocated resources.
+Free the game structure itself.
+```
+
+##### `char* encodeMap(FILE* mapFile, game_t* game);`
+Encodes the map from the provided file, setting the game’s map dimensions and storing it as a single string.
+```C
+Open map file and initialize map buffer.
+
+For each line in map file:
+    Set map width based on the first line's length.
+    Ensure each line has consistent length with map width.
+    Append line to the map buffer and update map height.
+
+Return the encoded map as a single string.
+```
+
+##### `player_t* getPlayerByLetter(char letter, game_t* game);
+Finds and returns a player structure based on their assigned letter identifier.`
+```C
+Iterate through players in the hashtable.
+If player’s letter matches the given letter, return the player structure.
+Return NULL if no matching player is found.
+```
 ---
-
-
----
-
 
 ## Map module
 
-The module will utilize previously specified player_t struct.
-The idea of the module is to handle changes to what each client who is plyaing sees.
+The Map module in the Nuggets game handles the creation, visibility, and management of the in-game map. The map is stored as a character array, and each player has a personal view (visible map) of the full map (master map). This module manages players' starting positions, what each player can see, and updates player-specific maps as they explore or interact with the game environment.
 
-Important definitions for this module's description:
+### Definition of function prototypes & Pseudocode
 
-playerMap - the map the client sees on their computer
-visibleMap - the map the player sees at one time (i.e. not inclusing previously seen rooms etc., equivalent to the region where a player would see gold)
-masterMap - the full game map with up to date player positions and gold positions, taken care of in game module 
-
-### Data structures
-
-```C
-typedef struct player {
-    char* playerName;
-    char* playerMap;
-    char role;
-    int xPosition;
-    int yPosition;
-    int goldCaptured;
-    bool isActive;
-} player_t;
-```
-
-### Definition of function prototypes
-
-Function that turns a .txt file into a string.
-`char* map_encode(FILE* fp);`
-
-Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
-`void map_player_init(char* masterMap, int* x, int* y, int seed);`
-
-Function that takes in a player's coordinates and the master map  
-`void map_get_visible(int x, int y, char* masterMap char* visibleMap);`
-=======
-`game_updateState`
-Updates the game state based on player actions or events.
-```C
-void updateState(player_t* player, char action);
-```
-
-`game_playerMove`
-Modifies the encoded map string to move the player character to a requested location only if move is valid. Also checks if player moves onto gold. Returns new encoded visible map.
-```C
-char* game_playerMove(char* currentVisibleMap, char moveType, int xPos, int yPos);
-```
-
-`game_mapEncode`
-Function that turns a .txt file into a string.
-`char* game_mapEncode(FILE* fp);`
->>>>>>> 4b1105c (Implementation specifications updated)
-
-### Detailed pseudo code
-
-`game_init`
-```
-encode map to string from mapfile
-place gold piles randomly on map
-initialize player hashtable in global game object
-initialize active players array in global game object
-intialize gold
-```
-
-`game_updateState`
-```
-receive player action
-switch (action):
-    case move:
-        playerMove
-    case quit:
-        deactivate player in players hashtable
-        remove player from active players array
-    if goldRemaining is zero:
-        end game and show results
-```
-
-`game_playerMove`
-```
-Go to current position in map string of player given xPos and yPos
-switch (moveType):
-    case up:
-        backtrack through string by width of map and check if character is valid to move to
-        if valid:
-            update player pos
-            check if player collected gold
-            if collected gold:
-                increment players gold
-                decrement gold remaining
-            refresh all players visible map
-    case down:
-        go forward through string by width of map and check if character is valid to move to
-        if valid:
-            update player pos
-            check if player collected gold
-            if collected gold:
-                increment players gold
-                decrement gold remaining
-            refresh all players visible map
-    case left:
-        Check if character to left is valid to move to
-        if valid:
-            update player pos
-            check if player collected gold
-            if collected gold:
-                increment players gold
-                decrement gold remaining
-            refresh all players visible map
-    case right:
-        Check if character to right is valid to move to
-        if valid:
-            update player pos
-            check if player collected gold
-            if collected gold:
-                increment players gold
-                decrement gold remaining
-            refresh all players visible map
-        
-```
-
-`char* game_mapEncode(FILE* fp);`
-
-```C 
-open file
-malloc a map string with mapWidth*mapHeight characters 
-while not EOF read file 
-    put character into the string
-return map string
-```
-
-
-
-
----
-
-
-## Map module
-
-The module will utilize previously specified player_t struct.
-The idea of the module is to handle changes to what each client who is plyaing sees.
-
-Important definitions for this module's description:
-
-playerMap - the map the client sees on their computer
-visibleMap - the map the player sees at one time (i.e. not inclusing previously seen rooms etc., equivalent to the region where a player would see gold)
-masterMap - the full game map with up to date player positions and gold positions, taken care of in game module 
-
-### Data structures
-
-```C
-typedef struct player {
-    char* playerName;
-    char* playerMap;
-    char role;
-    int xPosition;
-    int yPosition;
-    int goldCaptured;
-    bool isActive;
-} player_t;
-```
-
-### Definition of function prototypes
-
-Function that turns a .txt file into a string.
-`char* map_encode(FILE* fp, int mapWidth, int mapHeight);`
-
-Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
-`void map_player_init(char* masterMap, int* x, int* y, int* seed);`
-
-Function that takes in a player's coordinates and the master map and outputs the visibleMap (only what the payer sees immediately)  
-`void map_get_visible(int x, int y, char* masterMap char* visibleMap);`
-
-Function that takes in the visible map and the payer's presious map and merges them omitting the gold from previous map. 
-`void map_merge(char* playerMap, char* visibleMap);`
-
-
-### Detailed pseudo code
-
-
-`void map_player_init(char* masterMap, int* x, int* y, int* seed);`
-
+##### `void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR, game_t* game);`
+Initializes a player’s starting coordinates on the master map based on the given seed. Ensures the player starts on an empty tile ('.').
 ```C
 while (x, y) location is not a valid '.' on masterMap
     if seed is non null 
@@ -546,8 +267,10 @@ while (x, y) location is not a valid '.' on masterMap
         y = srand(getpid())
 return
 ```
-`void map_get_visible(int x, int y, char* masterMap char* visibleMap);`
 
+
+##### `void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int NC, const int NR);`
+Calculates the visible area around a player’s current coordinates (x, y) based on line-of-sight.
 ```C
 for each character on the masterMap (0 to strlen(masterMap))
     calculate coordinates of the point in (ptX, ptY) form
@@ -557,9 +280,8 @@ for each character on the masterMap (0 to strlen(masterMap))
         visibleMap(i) = ' ';
 ```
 
-Helper functoin for getting visible map 
-`bool isVisible(int x, int y, int ptX, int ptY, char* masterMap)`
-
+##### `static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int NC);`
+Determines whether a given point (ptX, ptY) is visible from (x, y) using line-of-sight. This helper function is called within map_get_visible.
 ```C 
 calculate slope coefficient between the two point = k (i.e. rise/run)
 for(int i = 1; i < |x - ptX|; i++)
@@ -576,8 +298,8 @@ for(int i = 1; i < |y - ptY|; i++)
 return true
 ```
 
-`void map_merge(char* playerMap, char* visibleMap);`
-
+##### 'void map_merge(char* playerMap, char* visibleMap);'
+Merges the player’s updated visible map into their overall player map, removing out-of-view gold or player markers.
 ```C
 for each character on the masterMap (0 to strlen(playerMap))
     erase gold or other player:
@@ -587,64 +309,85 @@ for each character on the masterMap (0 to strlen(playerMap))
     if visibleMap != ' '
         playerMap(i) = visibleMap(i)
 ```
----
-### Message Module
 
-We have been provided a ```message``` module and to utilize that, we write the following functions
-
-```C 
-static bool handleTimeout(void* arg);
-```
-```handleTimeout``` handles the situation if there's no input within the specified time
-
+##### 'char* map_decode(char* map, game_t* game);'
+Converts a single string representation of the map into a displayable format by adding newlines at the end of each row.
 ```C
-static bool handleMessage(void* arg, const addr_t from, const char* message, player_t* player);
+Calculate newLength for the formatted map string.
+Allocate memory for the formatted map.
+Loop through each tile in map:
+    Append tile to result.
+    Add newline after every row (based on mapWidth).
+Null-terminate and return the formatted result.
 ```
-```handleMessage``` handles any incoming message and takes necessary actions
+---
+## Extra Credit
 
-```C 
-static bool handleInput (void* arg);
-```
-```handleInput``` takes the input of the player and sends that to the server.
+#### Server Argument Options, including `--plain`
+We have added the following optional arguments for the server:
+- `--gold 500`: specifies the total gold in the game.
+- `--minpiles 15`: sets the minimum number of gold piles.
+- `--maxpiles 40`: sets the maximum number of gold piles.
+- `--seed 123`: provides a seed for random generation of gold placement and player spawning
+- `--plain`: allows the server to disable all extra credit capabilites.
 
-### Pseudocode for handleInput
-```
-if there's no input
-    log null
-else
-    send the message to the server using message_send
-```
-### Pseudocode for handleTimeout
-```
-if there's no input
-    log null
-else
-    send a message to the player
-```
-### Pseudocode for handleMessage
-```
-if there's not proper argument
-    log null
-else
-    call update game state using the appropriate message
-```
+#### Gold Stealing when Players Swap Spots
+Players can steal gold by stepping onto other players. If a player enters the tile of another player, they take all gold the other player has collected. 
+
+#### Drop Gold on Quit
+When a player quits before the game ends, their collected gold is left at their last location on the map. This gold pile becomes available for other players to collect, encouraging strategy around player interactions.
+
+---
+
 ## Testing plan
 
-### unit testing
+### Unit testing
 
-> How will you test each unit (module) before integrating them with a main program (client or server)?
+- `Game Module`
+    - Initialization: Test different game settings to check that the game initializes with correct map dimensions, player letters, and gold placement.
+    - Player Movement: Test various player moves, ensuring valid moves update the player position and map, and invalid moves are rejected.
+    - Gold Placement: Check if the correct amount of gold piles is placed only on walkable tiles.
+    - Player Initialization: Verify that each player gets a unique letter and starting position and that the max player limit (26) is respected.
+    - Final Scores: Test final scores format and values with different player setups.
+    - Map Encoding: Test different map files to confirm encoding and consistent map dimensions.
+
+- `Map Module`
+    - Player Starting Position: Check that players are placed on valid starting tiles based on a given seed.
+    - Visibility Calculation: Verify visible area around a player’s position, ensuring line-of-sight works correctly.
+    - Map Merging: Confirm that the player’s map view is updated properly as they explore.
+    - Visibility Check: Test visibility of distant tiles, ensuring obstacles block line-of-sight.
+
+- `Client Module`
+    - Argument Parsing: Test valid and invalid client command-line inputs to ensure proper configuration.
+    - Server Message Handling: Check that the client processes different server messages correctly (e.g., grid setup, player status).
+    - User Input Handling: Test user commands (e.g., movement and quit) to confirm expected behavior.
+
+- 'Server Module'
+    - Argument Parsing: Validate command-line inputs, ensuring correct game settings and map file handling.
+    - Client Messages: Test different client messages to verify server responses and game state updates.
+    - Input Commands: Test server input commands like "status" and "quit" to ensure expected server behavior.
 
 ### Integration testing
 
-> How will you test the complete main programs: the server, and for teams of 4, the client?
+- `Server` and `Game` Modules
+    - Server Startup: Test if server initializes the game correctly with different inputs.
+    - Client Connections: Connect multiple clients provided support, verifying game responses and updates.
+    - Game Events: Simulate/manually cause player movements and gold collection, confirming updates across all clients.
+    - Game End: Test final scores are sent correctly to players at game end.
+
+- `Client` and `Server` Communication
+    - Message Protocols: Test message exchange for each command to confirm consistency.
+    - Spectator Mode: Verify spectator view is updated without affecting gameplay.
+    - Edge Cases: Test multiple simultaneous connections and rapid commands to check stability.
 
 ### System testing
 
-> For teams of 4: How will you test your client and server together?
+- Full Gameplay Testing: Run complete game scenarios with multiple players and spectators, ensuring accurate score tracking and smooth gameplay flow.
+- Real-Time Updates: Verify that spectators and players receive real-time map and score updates throughout the game.
+- Error Handling: Simulate player disconnects, invalid inputs, and abrupt server shutdowns to confirm stability.
+- Performance and Load Testing: Test server performance under maximum players and spectators, checking for responsiveness and memory leaks.
+- End-to-End Tests: Conduct game sequences from setup through final scoring, confirming correct behavior and no crashes under typical gameplay scenarios.
 
 ---
 
 ## Limitations
-
-> Bulleted list of any limitations of your implementation.
-> This section may not be relevant when you first write your Implementation Plan, but could be relevant after completing the implementation.

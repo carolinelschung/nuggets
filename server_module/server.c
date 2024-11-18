@@ -17,23 +17,23 @@
 #include "../libcs50/mem.h"
 #include <ctype.h>
 #include "../map_module/map.h"
+#include <getopt.h>
 
 #define MAX_NAME_LENGTH 50 // max number of chars in playerName
 // Function prototypes
-FILE* parseArgs(int argc, char* argv[], int* seed);
 bool handleInput(void* arg);
 bool handleMessage(void* arg, const addr_t from, const char* buf);
 
 int main(int argc, char* argv[])
 {
 
-  int seed;
-
+  int seed, gold, minPiles, maxPiles;
+  bool plain = false;
   // Parse args and open map file
-  FILE* mapFile = parseArgs(argc, argv, &seed);
+  FILE* mapFile = parseArgs(argc, argv, &seed, &gold, &minPiles, &maxPiles, &plain);
 
   // initialize the game
-  game_t* game = game_init(mapFile, seed);
+  game_t* game = game_init(mapFile, seed, gold, minPiles, maxPiles, plain);
   if (game == NULL) {
     fprintf(stderr, "Error: Failed to initialize game\n");
     return 1;
@@ -64,28 +64,59 @@ int main(int argc, char* argv[])
 
 
 // Function to parse command-line arguments, validate them, and open the map file
-FILE* parseArgs(int argc, char* argv[], int* seed) 
-{
-    // Check for the correct number of arguments
-    if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: %s map.txt [seed]\n", argv[0]);
+FILE* parseArgs(int argc, char* argv[], int* seed, int* gold, int* minPiles, int* maxPiles, bool* plain) {
+    *gold = 250;  // Default values
+    *minPiles = 10;
+    *maxPiles = 30;
+    *seed = 0;
+
+    int option;
+    struct option options[] = {
+      {"gold", required_argument, 0, 'g'},
+      {"minpiles", required_argument, 0, 'm'},
+      {"maxpiles", required_argument, 0, 'x'},
+      {"seed", required_argument, 0, 's'},
+      {"plain", no_argument, 0, 'p'},
+      {0, 0, 0, 0}
+    };
+
+    while ((option = getopt_long(argc, argv, "g:m:x:s:p", options, NULL)) != -1) {
+      switch (option) {
+        case 'g':
+          *gold = atoi(optarg);
+          break;
+        case 'm':
+          *minPiles = atoi(optarg);
+          break;
+        case 'x':
+          *maxPiles = atoi(optarg);
+          break;
+        case 's':
+          *seed = atoi(optarg);
+          break;
+        case 'p':
+          *plain = true;
+          break;
+
+        case '?':
+            fprintf(stderr, "Usage: %s [--gold 500] [--minpiles 15] [--maxpiles 40] [--seed 123] map.txt\n", argv[0]);
+            exit(1);
+      }
+    }
+
+    if (optind >= argc) {
+        fprintf(stderr, "Usage: %s map.txt [options]\n", argv[0]);
         exit(1);
     }
 
-    // Open the map file
-    const char* mapFilename = argv[1];
+    const char* mapFilename = argv[optind];
     FILE* mapFile = fopen(mapFilename, "r");
     if (mapFile == NULL) {
         fprintf(stderr, "Failed to open %s\n", mapFilename);
+        exit(1);
     }
 
-    // Parse the optional seed argument, default to 0 if not provided
-    *seed = (argc == 3) ? atoi(argv[2]) : 0;
-    if (*seed < 0) {
-        fprintf(stderr, "Seed must be a positive int\n");
-    }
-
-    return mapFile; // Return the opened map file
+    return mapFile;
 }
 
 // Helper Functions
@@ -206,16 +237,46 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
 
         //Checking if it's a valid key;
         if (strchr(valid_chars, key)) {
-            printf("The keystroke is valid\n");
-            fflush(stderr);
-            if (key == 'Q' || key == 'q') {
-                if (message_eqAddr(from, game->spectatorAddress)) {
-                    message_send(from, "QUIT Thanks for watching");
-                }
-                else {
-                    message_send(from,"QUIT Thanks for playing");
+          printf("The keystroke is valid\n");
+          //fflush(stderr);
+          if (key == 'Q' || key == 'q') {
+              if (message_eqAddr(from, game->spectatorAddress)) {
+                  message_send(from, "QUIT Thanks for watching");
+              }
+              else {
+                message_send(from, "QUIT Thanks for playing");
+                player_t* quittingPlayer = hashtable_find(game->players, message_stringAddr(from));
+                if (quittingPlayer != NULL) {
+                  int indexToLeave = quittingPlayer->yPosition * game->mapWidth + quittingPlayer->xPosition;
+                  if (!game->plain) {
+                    int indexToLeave = quittingPlayer->yPosition * game->mapWidth + quittingPlayer->xPosition;
+                    game->map[indexToLeave] = '*';
 
+                    char key[12];
+                    snprintf(key, sizeof(key), "%d", indexToLeave);
+
+                    int* goldCapturedPtr = malloc(sizeof(int));
+                    if (goldCapturedPtr == NULL) {
+                        fprintf(stderr, "Error: Failed to allocate memory for goldCaptured.\n");
+                        return false;
+                    }
+                    *goldCapturedPtr = quittingPlayer->goldCaptured;
+                    game->goldRemaining += quittingPlayer->goldCaptured;
+
+                    quittingPlayer->goldCaptured = 0; //drops the gold
+
+                    hashtable_insert(game->goldPileAmounts, key, goldCapturedPtr);
+                  } else {
+                    game->map[indexToLeave] = '.';
+                  }
+                  for (int i = 0; i < MaxPlayers; i++) {
+                    if (message_eqAddr(game->activePlayers[i], from)) {
+                      game->activePlayers[i] = message_noAddr();
+                      break;
+                    }
+                  }
                 }
+              }
             }
             // else {
                 

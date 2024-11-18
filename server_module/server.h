@@ -14,7 +14,7 @@
  * @param seed pointer to an integer where the seed will be stored
  * @return FILE pointer to the opened map file, or NULL if failed
  */
-FILE* parseArgs(int argc, char* argv[], int* seed);
+FILE* parseArgs(int argc, char* argv[], int* seed, int* gold, int* minPiles, int* maxPiles, bool* plain);
 
 /**
  * Prints the details of the initialized game for verification purposes.

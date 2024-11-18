@@ -25,6 +25,7 @@
 #define GoldMaxNumPiles 30
 #define MaxPlayers 26
 #define MAX_LINE_LENGTH 1024  // Set a reasonable max line length based on map constraints
+#define MAX_NAME_LENGTH 50
 
 /**************** local functions ****************/
 char* encodeMap(FILE* mapFile, game_t* game);
@@ -37,7 +38,7 @@ player_t* getPlayerByLetter(char letter, game_t* game);
 void getPlayerByLetterHelper(void* arg, const char* key, void* item);
 static void player_delete(void* playerRaw);
 
-game_t* game_init(FILE* mapFile, int seed)
+game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)
 {
     game_t* game = mem_malloc(sizeof(game_t));
 
@@ -49,10 +50,16 @@ game_t* game_init(FILE* mapFile, int seed)
     }
 
     game->seed = seed;
+    game->goldRemaining = gold;
+    game->minGoldPiles = minGoldPiles;
+    game->maxGoldPiles = maxGoldPiles;
+    game->plain = plain;
+
 
     game->map = encodeMap(mapFile, game);
-    game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
+
+    game->nextAvailableLetter = 'A';
 
 
     // // initialize activePlayers array
@@ -68,6 +75,8 @@ game_t* game_init(FILE* mapFile, int seed)
 
     game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
     strcpy(game->mapWithNoPlayers, game->map);
+
+    game->activePlayersCount = 0;
 
     placeGold(game);
 
@@ -189,70 +198,6 @@ void game_print(const game_t* game)
 }
 
 
-
-// /**************** game_test ****************/
-// /* test scenario for game and map */
-// void game_test(game_t* game)
-// {
-    
-//     int x, y;
-//     int seed = 21;  // Example seed value
-
-//     // Pass addresses of x, y, and seed to allow modification in map_player_init
-//     map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
-
-//     printf("Player initialized at position: (%d, %d)\n", x, y);
-
-//     char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
-
-//     visibleMap[y*game->mapWidth+x] = '@';
-
-//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-//     char* mapToPrint = map_decode(visibleMap, game);
-//     printf("%s", mapToPrint);
-
-//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-//     x = x - 1;
-//     y = y + 1;
-//     visibleMap[y*game->mapWidth+x] = '@';
-
-//     char* previousMap = mem_malloc((1+strlen(visibleMap))*sizeof(char));
-//     strcpy(previousMap, visibleMap);
-
-//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-//     map_merge(visibleMap, previousMap);
-//     mapToPrint = map_decode(visibleMap, game);
-//     printf("%s", mapToPrint);
-
-//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-//     x = x - 1;
-//     y = y + 1;
-//     visibleMap[y*game->mapWidth+x] = '@';
-
-//     strcpy(previousMap, visibleMap);
-
-//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-//     map_merge(visibleMap, previousMap);
-//     mapToPrint = map_decode(visibleMap, game);
-//     printf("%s", mapToPrint);
-
-//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
-
-//     x = x + 20;
-//     visibleMap[y*game->mapWidth+x] = '@';
-
-//     strcpy(previousMap, visibleMap);
-
-//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-//     map_merge(visibleMap, previousMap);
-//     mapToPrint = map_decode(visibleMap, game);
-//     printf("%s", mapToPrint);
-//     mem_free(visibleMap);
-//     mem_free(previousMap);
-// }
-
 void game_delete(game_t* game) {
     if (game == NULL) return;
 
@@ -278,6 +223,7 @@ void game_delete(game_t* game) {
     mem_free(game);
 }
 
+
 static void player_delete(void* playerRaw){
     player_t* player = (player_t*) playerRaw;
     mem_free(player->playerMap);
@@ -287,37 +233,77 @@ static void player_delete(void* playerRaw){
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
 {
     player_t* player = mem_malloc(sizeof(player_t));
-    for (int i = 0; i < 26; i++) {
-        printf("Address is: %s\n", message_stringAddr(game->activePlayers[i]));
-        if (!(message_isAddr(game->activePlayers[i]))) {
+    if (player == NULL) {
+        fprintf(stderr, "Error: Failed to allocate memory for player.\n");
+        return NULL;
+    }
+
+    // Check if we have available letters left
+    if (game->nextAvailableLetter > 'Z') {
+        fprintf(stderr, "Error: Maximum number of players reached.\n");
+        mem_free(player);
+        return NULL;
+    }
+
+    // Find the first available slot in activePlayers for a new player
+    for (int i = 0; i < MaxPlayers; i++) {
+        if (!message_isAddr(game->activePlayers[i])) {  // Check if the slot is available
+            // Assign address to this slot and set the player's letter
             game->activePlayers[i] = address;
             player->address = address;
-            player->playerLetter = game->playerLetters[i];
-            player->playerName = playerName;
-            game->activePlayersCount+=1;
+            player->playerLetter = game->nextAvailableLetter;  // Assign the current available letter
+            game->activePlayersCount++;
+
+            // Prepare for the next player by moving to the next letter
+            game->nextAvailableLetter++;
+
+            // Allocate memory for playerName and copy it safely with null termination
+            player->playerName = mem_malloc(MAX_NAME_LENGTH + 1);
+            if (player->playerName != NULL) {
+                strncpy(player->playerName, playerName, MAX_NAME_LENGTH);
+                player->playerName[MAX_NAME_LENGTH] = '\0';  // Ensure null termination
+            } else {
+                fprintf(stderr, "Error: Failed to allocate memory for playerName.\n");
+                mem_free(player);  // Free player memory if name allocation fails
+                return NULL;
+            }
+
+            // Insert player into the hashtable using the address as the key
             hashtable_insert(game->players, message_stringAddr(address), player);
 
-            printf("THis is in player init %s\n", message_stringAddr(address));
+            printf("New player initialized with name: %s, letter: %c\n", player->playerName, player->playerLetter);
             fflush(stdout);
+
+            // Initialize player's position using map_player_init
             int x, y;
-            map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight);
-            player->playerMap = mem_malloc(sizeof(char)*(strlen(game->map)+1));
-            map_get_visible(x, y, game->map, player->playerMap, game->mapWidth, game->mapHeight);
+            map_player_init(game->map, &x, &y, &(game->seed), game->mapWidth, game->mapHeight, game);
             player->xPosition = x;
             player->yPosition = y;
 
-            //adds playerLetter/your indicator to respective maps
-            /*int index = y * game->mapWidth + x;
-            game->map[index] = player->playerLetter;
-            player->playerMap[index] = '@';*/
+            // Allocate and initialize player map
+            player->playerMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
+            if (player->playerMap == NULL) {
+                fprintf(stderr, "Error: Failed to allocate memory for playerMap.\n");
+                mem_free(player->playerName);
+                mem_free(player);
+                return NULL;
+            }
 
-            return player;
-            
+            map_get_visible(x, y, game->map, player->playerMap, game->mapWidth, game->mapHeight);
+
+            // Add player’s letter to the map and player's map
+            int index = y * game->mapWidth + x;
+            game->map[index] = player->playerLetter;
+            player->playerMap[index] = '@';
+
+            return player;  // Successfully initialized player
         }
     }
+
+    // If no available slot is found, free allocated memory and return NULL
+    mem_free(player);
     return NULL;
 }
-
 
 /************* HELPER FUNCTIONS *****************/
 
@@ -401,42 +387,32 @@ void placeGold(game_t* game) {
         return;
     }
 
-    int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
-    int minGoldPerPile = 1;  // Ensure each pile has at least 1 gold
-    int remainingGold = 250 - (minGoldPerPile * numPiles);  // Initial leftover after assigning min to each pile
+    int numPiles = game->minGoldPiles + rand() % (game->maxGoldPiles - game->minGoldPiles + 1);
+    int remainingGold = game->goldRemaining - numPiles;
 
     game->goldPileAmounts = hashtable_new(numPiles);
 
     int pileValues[numPiles];
-
-    // Start each pile with the minimum gold amount
     for (int i = 0; i < numPiles; i++) {
-        pileValues[i] = minGoldPerPile;
+        pileValues[i] = 1;
     }
 
-    // Distribute the remaining gold randomly among the piles
+    // Distribute the remaining gold among the piles
     while (remainingGold > 0) {
         int randomPile = rand() % numPiles;
         pileValues[randomPile]++;
         remainingGold--;
     }
 
-    // Place each pile of gold on the map at random positions
     for (int i = 0; i < numPiles; i++) {
         int* pileSizePtr = malloc(sizeof(int));
-        if (pileSizePtr == NULL) {
-            fprintf(stderr, "Error: Memory allocation failed for pileSize.\n");
-            return;
-        }
         *pileSizePtr = pileValues[i];
-
-        // Find a random empty spot on the map
         bool spotFound = false;
-        char key[12];
         while (!spotFound) {
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
                 game->map[randIndex] = '*';
+                char key[12];
                 snprintf(key, sizeof(key), "%d", randIndex);
                 hashtable_insert(game->goldPileAmounts, key, pileSizePtr);
                 spotFound = true;
@@ -447,6 +423,7 @@ void placeGold(game_t* game) {
 
     hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
+
 
 char* game_getFinalScores(game_t* game)
 {   
@@ -516,7 +493,13 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     int proposedIndex = proposedY * game->mapWidth + proposedX;
     char proposedTile = game->map[proposedIndex];
 
-    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*') {
+    char valid_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*' && strchr(valid_chars, proposedTile) == false) {
+        return false;
+    }
+
+    if (strchr(valid_chars, proposedTile) && game->plain) {
         return false;
     }
 
@@ -539,6 +522,35 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         if (goldAmountPtr) {
             //mem_free(goldAmountPtr);
             hashtable_insert(game->goldPileAmounts, key, NULL);
+        }
+    }
+
+    if (strchr(valid_chars, proposedTile) && !game->plain) {
+        int index = proposedTile - 'A';  // Calculate the index in activePlayers based on the letter
+        const char* stringAddress = message_stringAddr(game->activePlayers[index]);
+        player_t* playerMovedOnto = hashtable_find(game->players, stringAddress);
+
+        if (playerMovedOnto != NULL) {
+            printf("Player %c moved onto player %c\n", player->playerLetter, playerMovedOnto->playerLetter);
+
+            // Steal gold from the player being moved onto
+            player->goldCaptured += playerMovedOnto->goldCaptured;
+            playerMovedOnto->goldCaptured = 0;
+
+            // Swap positions
+            int tempX = playerMovedOnto->xPosition;
+            int tempY = playerMovedOnto->yPosition;
+            playerMovedOnto->xPosition = player->xPosition;
+            playerMovedOnto->yPosition = player->yPosition;
+            player->xPosition = tempX;
+            player->yPosition = tempY;
+
+            // Update map to reflect swapped positions
+            game->map[playerMovedOnto->yPosition * game->mapWidth + playerMovedOnto->xPosition] = playerMovedOnto->playerLetter;
+            game->map[player->yPosition * game->mapWidth + player->xPosition] = player->playerLetter;
+        } else {
+            printf("Error: Could not find player at activePlayers[%d]\n", index);
+            return false;
         }
     }
 

@@ -49,9 +49,13 @@ typedef struct game {
     int activePlayersCount;
     bool hasSpectator;
     addr_t spectatorAddress;
-    int goldRemaining;
     int seed;
     char playerLetters[26];
+    char nextAvailableLetter;
+    int goldRemaining;
+    int minGoldPiles;
+    int maxGoldPiles;
+    bool plain;
 } game_t;
 
 /**************** functions ****************/
@@ -65,7 +69,7 @@ typedef struct game {
  * Caller is responsible for:
  *   later calling game_cleanup
  */
-game_t* game_init(FILE* mapFile, int seed);
+game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain);
 
 /**************** game_updateState ****************/
 /* Updates the state of the game based on a player's action.
@@ -100,21 +104,9 @@ bool game_playerMove(addr_t playerAddress, game_t* game, char moveType);
  */
 void game_print(const game_t* game);
 
-
-/**************** game_print ****************/
-/* Prints the a object 
- *
- * Caller provides:
- *   - game object to print
- */
-void game_test(game_t* game);
-
-
 void game_delete(game_t* game);
 
-
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName);
-
 
 char* game_getFinalScores(game_t* game);
 
