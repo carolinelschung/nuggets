@@ -507,7 +507,9 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     int proposedIndex = proposedY * game->mapWidth + proposedX;
     char proposedTile = game->map[proposedIndex];
 
-    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*') {
+    char valid_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*' && strchr(valid_chars, proposedTile) == false) {
         return false;
     }
 
@@ -530,6 +532,35 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         if (goldAmountPtr) {
             mem_free(goldAmountPtr);
             hashtable_insert(game->goldPileAmounts, key, NULL);
+        }
+    }
+
+    if (strchr(valid_chars, proposedTile)) {
+        int index = proposedTile - 'A';  // Calculate the index in activePlayers based on the letter
+        const char* stringAddress = message_stringAddr(game->activePlayers[index]);
+        player_t* playerMovedOnto = hashtable_find(game->players, stringAddress);
+
+        if (playerMovedOnto != NULL) {
+            printf("Player %c moved onto player %c\n", player->playerLetter, playerMovedOnto->playerLetter);
+
+            // Steal gold from the player being moved onto
+            player->goldCaptured += playerMovedOnto->goldCaptured;
+            playerMovedOnto->goldCaptured = 0;
+
+            // Swap positions
+            int tempX = playerMovedOnto->xPosition;
+            int tempY = playerMovedOnto->yPosition;
+            playerMovedOnto->xPosition = player->xPosition;
+            playerMovedOnto->yPosition = player->yPosition;
+            player->xPosition = tempX;
+            player->yPosition = tempY;
+
+            // Update map to reflect swapped positions
+            game->map[playerMovedOnto->yPosition * game->mapWidth + playerMovedOnto->xPosition] = playerMovedOnto->playerLetter;
+            game->map[player->yPosition * game->mapWidth + player->xPosition] = player->playerLetter;
+        } else {
+            printf("Error: Could not find player at activePlayers[%d]\n", index);
+            return false;
         }
     }
 
