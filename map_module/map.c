@@ -237,6 +237,9 @@ Function that takes in the visible map and the payer's presious map and merges t
 
 */
 void map_merge(char* playerMap, char* visibleMap){
+  if(playerMap == NULL){
+    return;
+  }
   int length = strlen(playerMap);
   for(int i = 0; i < length; i++){
     if(playerMap[i] == '*' || (playerMap[i] >= 'A' && playerMap[i] <= 'Z')){

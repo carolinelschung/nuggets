@@ -61,11 +61,13 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
 
     game->nextAvailableLetter = 'A';
 
+    game->hasSpectator = false;
+    
 
-    // // initialize activePlayers array
-    // for (int i = 0; i < MaxPlayers; i++) {
-    //     game->activePlayers[i] = NULL; // Zero-initialize each `addr_t` element
-    // }
+    // initialize activePlayers array
+    for (int i = 0; i < MaxPlayers; i++) {
+        game->activePlayers[i] = message_noAddr(); // Zero-initialize each `addr_t` element
+    }
 
     // Initialize player letters
     for (int i = 0; i < 26; i++) {
@@ -245,6 +247,9 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
         return NULL;
     }
 
+    player->goldCaptured = 0;
+    player->goldJustCaptured = 0;
+
     // Find the first available slot in activePlayers for a new player
     for (int i = 0; i < MaxPlayers; i++) {
         if (!message_isAddr(game->activePlayers[i])) {  // Check if the slot is available
@@ -393,6 +398,7 @@ void placeGold(game_t* game) {
     game->goldPileAmounts = hashtable_new(numPiles);
 
     int pileValues[numPiles];
+    pileValues[0] = '\0';
     for (int i = 0; i < numPiles; i++) {
         pileValues[i] = 1;
     }
@@ -441,6 +447,7 @@ char* game_getFinalScores(game_t* game)
         if (player != NULL) {
             // Format the player's information and append to quitMessage
             char playerInfo[100];
+            playerInfo[0] = '\0';
             snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
                      player->playerLetter, player->goldCaptured, player->playerName);
             strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
@@ -508,6 +515,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     if (game->map[proposedIndex] == '*') {
         // Convert proposedIndex to a string for lookup in the hashtable
         char key[12];
+        key[0] = '\0';
         snprintf(key, sizeof(key), "%d", proposedIndex);
 
         int* goldAmountPtr = hashtable_find(game->goldPileAmounts, key);
