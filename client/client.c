@@ -19,6 +19,7 @@
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
+#include "mem.h"
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
@@ -27,6 +28,7 @@ typedef struct client {
   char* statusLine;
   char playerSymbol;
   bool isSpectator;
+  bool isQuitting;
 } client_t;
 
 /************* function prototypes ************/
@@ -52,11 +54,16 @@ static void handleDisplayMessage(const char* message);
 /******************* main ********************/
 int main(int argc, char* argv[]) 
 {
-  log_init(stderr); // initialize the log
+  FILE* log = fopen("client.log", "w");
+  if (log == NULL) {
+    fprintf(stderr, "Error opening log file\n");
+    exit(1);
+  }
+  log_init(log); // initialize the log
   log_v("Client started.");
 
   // allocate memory for client
-  client_t* client = malloc(sizeof(client_t)); 
+  client_t* client = mem_malloc(sizeof(client_t)); 
   if (client == NULL) { // check for memory allocation failure
     fprintf(stderr, "Error: Memory allocation failed\n");
     exit(1); 
@@ -66,15 +73,17 @@ int main(int argc, char* argv[])
   memset(client, 0, sizeof(client_t));
 
   // allocate memory for statusLine
-  client->statusLine = malloc(message_MaxBytes);  // check for memory allocation failure
+  client->statusLine = mem_malloc(message_MaxBytes);  // check for memory allocation failure
   if (client->statusLine == NULL) {
     fprintf(stderr, "Error: Memory allocation failed for statusLine\n");
-    free(client);  
+    mem_free(client);  
     exit(1);
   }
 
   // initialize message module
   if (message_init(NULL) == 0) {
+    mem_free(client->statusLine);
+    mem_free(client);
     log_e("Initialization of message module failed");
     exit(1);
   }
@@ -95,9 +104,12 @@ int main(int argc, char* argv[])
   log_v("Cleaning up resources");
   message_done();
   log_done();
-  free(client->statusLine);
-  free(client); 
-
+  if (client->statusLine != NULL) {
+    mem_free(client->statusLine);
+    client->statusLine = NULL;
+  }  
+  mem_free(client); 
+  endwin();
   return ok? 0 : 1;
 }
 
@@ -121,6 +133,8 @@ void parseArgs(client_t* client, int argc, char* argv[])
     fprintf(stderr, "Error: Couldn't create address.\n");
     exit(1);
   }
+
+  client->isQuitting = false;
 
   // determine if player or spectator
   if (argc == 4) { // fourth arg indicates player
@@ -235,10 +249,11 @@ void handleGoldMessage(client_t* client, const char* message)
   // r - gold remaining in game
   int n, p, r;
 
+
   // read the message for GOLD n p r format
   if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
     /************************** HELP!!!!!!!!!!!!!!!!!! */
-    char* goldStatus = malloc(sizeof(char) * message_MaxBytes);
+    char* goldStatus = mem_malloc(message_MaxBytes);
     // write status line for spectator
     if (client->isSpectator) {
       sprintf(goldStatus, "Spectator: %d nuggets unclaimed.", r);
@@ -246,22 +261,26 @@ void handleGoldMessage(client_t* client, const char* message)
     else {
       sprintf(goldStatus, "Player %c has %d nuggets (%d nuggets unclaimed).", client->playerSymbol, p, r);
     }
-
-    client->statusLine = goldStatus;
+    
+    strcpy(client->statusLine, goldStatus); // copy gold status into status line 
 
     // update status line if player collects gold
     char gold_collected[strlen("GOLD received: ") + 5];
     if (n > 0) {
       sprintf(gold_collected, "GOLD received: %d", n);
-      char* totalStatus = malloc(sizeof(char) * (strlen(goldStatus) + strlen(gold_collected) + 1));
+      char* totalStatus = mem_malloc(message_MaxBytes);
       sprintf(totalStatus, "%s %s", client->statusLine, gold_collected);
       displayStatusLine(totalStatus);
+      refresh();
+      mem_free(totalStatus);
     }
     else{
       displayStatusLine(client->statusLine);
     }
 
+    
     refresh();
+    mem_free(goldStatus);
   }
   else {
     fprintf(stderr, "Error: Gold message from server could not be read.\n");
@@ -319,12 +338,13 @@ static void handleErrorMessage(client_t* client, const char* message)
     errorExplanation += 6;
   }
 
-  char* totalStatus = malloc(sizeof(char) * (strlen(errorExplanation) + strlen(client->statusLine) + 1));
+  char* totalStatus = mem_malloc(message_MaxBytes);
 
   sprintf(totalStatus, "%s %s", client->statusLine, errorExplanation);
 
   displayStatusLine(totalStatus);
   refresh();
+  mem_free(totalStatus);
 }
 
 /******************* handleDisplayMessage *****************/
@@ -335,7 +355,7 @@ static void handleDisplayMessage(const char* message)
   const char* displayMessage = message + strlen("DISPLAY\n");
 
   // copy the game state
-  char* gameState = malloc(strlen(displayMessage) + 1);
+  char* gameState = mem_malloc(strlen(displayMessage) + 1);
   if (gameState == NULL) {
     fprintf(stderr, "Error: Memory allocation failed for gameState\n");
     return;
@@ -344,14 +364,15 @@ static void handleDisplayMessage(const char* message)
 
   updateDisplay(gameState);
 
-  free(gameState);
+  // mem_free(displayMessage);
+  mem_free(gameState);
 }
 
 /******************* handleClientInput *****************/
 /* see client.h for description */
 bool handleClientInput(void* arg) 
 {
-  int inputCharacter; // int to hold client keystroke
+  char inputCharacter; // int to hold client keystroke
   char message[message_MaxBytes]; // buffer for holding client input
   // cast arg to client struct pointer
   client_t* client = (client_t*) arg;
@@ -362,12 +383,20 @@ bool handleClientInput(void* arg)
       return true;
     }
     
+    if (client->isQuitting) {
+      return true; // end loop
+    }
+
     // read one character from stdin
     inputCharacter = getch();
     if (inputCharacter == EOF) { // check to make sure not EOF
       message_send(client->server, "KEY Q");
       return true; // if it is stop looping
     } 
+
+    if (inputCharacter == 'Q') { // mark that the client is trying to quit
+      client->isQuitting = true; // but don't return true to allow the loop one last loop
+    }
 
     // create the message to server
     snprintf(message, sizeof(message), "KEY %c", inputCharacter);
