@@ -54,6 +54,8 @@ game_t* game_init(FILE* mapFile, int seed)
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
 
+    game->nextAvailableLetter = 'A';
+
 
     // // initialize activePlayers array
     // for (int i = 0; i < MaxPlayers; i++) {
@@ -286,13 +288,24 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName) {
         return NULL;
     }
 
-    // Find an available spot in activePlayers
-    for (int i = 0; i < 26; i++) {
-        if (!message_isAddr(game->activePlayers[i])) {  // Check if the slot is empty
+    // Check if we have available letters left
+    if (game->nextAvailableLetter > 'Z') {
+        fprintf(stderr, "Error: Maximum number of players reached.\n");
+        mem_free(player);
+        return NULL;
+    }
+
+    // Find the first available slot in activePlayers for a new player
+    for (int i = 0; i < MaxPlayers; i++) {
+        if (!message_isAddr(game->activePlayers[i])) {  // Check if the slot is available
+            // Assign address to this slot and set the player's letter
             game->activePlayers[i] = address;
             player->address = address;
-            player->playerLetter = game->playerLetters[i];
+            player->playerLetter = game->nextAvailableLetter;  // Assign the current available letter
             game->activePlayersCount++;
+
+            // Prepare for the next player by moving to the next letter
+            game->nextAvailableLetter++;
 
             // Allocate memory for playerName and copy it safely with null termination
             player->playerName = mem_malloc(MAX_NAME_LENGTH + 1);
@@ -337,12 +350,10 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName) {
         }
     }
 
-    // If no slot was available, free allocated memory and return NULL
+    // If no available slot is found, free allocated memory and return NULL
     mem_free(player);
     return NULL;
 }
-
-
 
 /************* HELPER FUNCTIONS *****************/
 

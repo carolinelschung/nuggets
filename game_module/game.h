@@ -49,9 +49,12 @@ typedef struct game {
     int activePlayersCount;
     bool hasSpectator;
     addr_t spectatorAddress;
-    int goldRemaining;
     int seed;
     char playerLetters[26];
+    char nextAvailableLetter;
+    int goldRemaining;
+    int minGoldPiles;
+    int maxGoldPiles;
 } game_t;
 
 /**************** functions ****************/
@@ -114,7 +117,6 @@ void game_delete(game_t* game);
 
 
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName);
-
 
 char* game_getFinalScores(game_t* game);
 

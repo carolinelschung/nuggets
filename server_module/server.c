@@ -208,14 +208,38 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
         //Checking if it's a valid key;
         if (strchr(valid_chars, key)) {
             printf("The keystroke is valid\n");
-            fflush(stderr);
+            //fflush(stderr);
             if (key == 'Q' || key == 'q') {
                 if (message_eqAddr(from, game->spectatorAddress)) {
                     message_send(from, "QUIT Thanks for watching");
                 }
                 else {
-                    message_send(from,"QUIT Thanks for playing");
+                    message_send(from, "QUIT Thanks for playing");
+                    player_t* quittingPlayer = hashtable_find(game->players, message_stringAddr(from));
+                    if (quittingPlayer != NULL) {
+                        int indexToLeaveGold = quittingPlayer->yPosition * game->mapWidth + quittingPlayer->xPosition;
+                        game->map[indexToLeaveGold] = '*';
 
+                        char key[12];
+                        snprintf(key, sizeof(key), "%d", indexToLeaveGold);
+
+                        int* goldCapturedPtr = malloc(sizeof(int));
+                        if (goldCapturedPtr == NULL) {
+                            fprintf(stderr, "Error: Failed to allocate memory for goldCaptured.\n");
+                            return false;
+                        }
+                        *goldCapturedPtr = quittingPlayer->goldCaptured;
+                        game->goldRemaining += quittingPlayer->goldCaptured;
+
+                        hashtable_insert(game->goldPileAmounts, key, goldCapturedPtr);
+
+                        for (int i = 0; i < MaxPlayers; i++) {
+                            if (message_eqAddr(game->activePlayers[i], from)) {
+                                game->activePlayers[i] = message_noAddr();
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             // else {
