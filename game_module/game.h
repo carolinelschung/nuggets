@@ -120,5 +120,4 @@ char* game_getFinalScores(game_t* game);
 
 
 
-
 #endif // __GAME_H

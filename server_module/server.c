@@ -3,7 +3,7 @@
  *
  * see server.h for more information.
  *
- * Joseph Quaratiello, November 2024
+ * Joseph Quaratiello, Nafis Saadiq Bhuiyan, November 2024
  */
 
 
@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 
   // Clean up after the loop ends
   game_delete(game);
+  message_done();
   return 0;
   
 }
@@ -151,15 +152,12 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 message_send(from, gold);
                 char first_part[] = "DISPLAY\n";
                 char* map = map_decode(player->playerMap, game);
-                // printf("Map decoded before move:\n");
-                // fflush(stdout);
-                // printf("%s\n", player->playerMap);
-                // fflush(stdout);
+                
                 char message[message_MaxBytes];
                 snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                // printf("%s\n", player->playerMap);
-                // fflush(stdout);
+                
                 message_send(from, message);
+                mem_free(map);
 
                 
             } 
@@ -195,6 +193,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
         char message[message_MaxBytes];
         snprintf(message, message_MaxBytes,"%s%s", first_part, map);
         message_send(from, message);
+        mem_free(map);
     } 
 
     else if (strncmp(buf, "KEY ", 4) == 0) {
@@ -236,19 +235,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                     if ((message_isAddr(game->activePlayers[i])) ) {
 
                         player_t* player = hashtable_find(game->players, message_stringAddr((game->activePlayers[i])));
-                        // printf("%s\n", (game->activePlayers[i]));
-                        // printf("\n%s\n", message_stringAddr((game->activePlayers[i])));
-                        // fflush(stdout);
-                        // if (player == NULL) {
-                        //     printf("Unsuccessful fetch\n");
-                        //     fflush(stdout);
-                        // }
-                        // printf("player t assigned \n");
-                        // fflush(stdout);
-                        // printf("player map:\n\n");
-                        // fflush(stdout);
-                        // printf("%s",player->playerMap);
-                        // fflush(stdout);
+                     
                         char first_part[] = "DISPLAY\n";
                         char* map = map_decode(player->playerMap, game);
                         // printf("map declared\n");
@@ -272,7 +259,9 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                             char* finalScores = game_getFinalScores(game);
                             snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
                             message_send(game->activePlayers[i], end_message);
+                            mem_free(finalScores);
                         }
+                        mem_free(map);
 
                     } 
                 }
@@ -284,6 +273,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 char gold[12];
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
                 message_send(game->spectatorAddress, gold);
+                mem_free(map);
 
                 if (game->goldRemaining == 0) {
                     // send message to the spectator printing out the result
@@ -292,6 +282,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                     char* finalScores = game_getFinalScores(game);
                     snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
                     message_send(game->spectatorAddress, end_message);
+                    mem_free(finalScores);
                     
                 }
 

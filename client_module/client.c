@@ -19,6 +19,7 @@
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
+#include "mem.h"
 
 /**************** global types ****************/
 // struct to hold necessary starting info for client to intitialize game
@@ -51,7 +52,7 @@ void updateDisplay(char* gameState);
 /******************* main ********************/
 int main(int argc, char* argv[]) 
 {
-  client_t* client = malloc(sizeof(client_t));
+  client_t* client = mem_malloc(sizeof(client_t));
   if (client == NULL) {
     fprintf(stderr, "Error: Memory allocation failed\n");
     exit(1);
@@ -59,14 +60,16 @@ int main(int argc, char* argv[])
   // Initialize the allocated memory to zero
   memset(client, 0, sizeof(client_t));
 
-  client->statusLine = malloc(message_MaxBytes);
+  client->statusLine = mem_malloc(message_MaxBytes);
   if (client->statusLine == NULL) {
     fprintf(stderr, "Error: Memory allocation failed for statusLine\n");
-    free(client);
+    mem_free(client);
     exit(1);
   }
 
   if (message_init(NULL) == 0) {
+    mem_free(client->statusLine);
+    mem_free(client);
     exit(1);
   }
 
@@ -82,8 +85,8 @@ int main(int argc, char* argv[])
 
   message_done();
   // log_done();
-  free(client->statusLine);
-  free(client);
+  // mem_free(client->statusLine);
+  mem_free(client);
   // endwin(); // stop ncurses
 
   return ok? 0 : 1;
@@ -231,7 +234,7 @@ void handle_gold_message(client_t* client, const char* message)
   // read the message for GOLD n p r format
   if (sscanf(message, "GOLD %d %d %d", &n, &p, &r) == 3) {
     /************************** HELP!!!!!!!!!!!!!!!!!! */
-    char* goldStatus = malloc(sizeof(char) * message_MaxBytes);
+    char* goldStatus = mem_malloc(sizeof(char) * message_MaxBytes);
     // write status line for spectator
     if (client->isSpectator) {
       sprintf(goldStatus, "Spectator: %d nuggets unclaimed.", r);
@@ -246,15 +249,18 @@ void handle_gold_message(client_t* client, const char* message)
     char gold_collected[strlen("GOLD received: ") + 5];
     if (n > 0) {
       sprintf(gold_collected, "GOLD received: %d", n);
-      char* totalStatus = malloc(sizeof(char) * (strlen(goldStatus) + strlen(gold_collected) + 1));
+      char* totalStatus = mem_malloc(sizeof(char) * (strlen(goldStatus) + strlen(gold_collected) + 1));
       sprintf(totalStatus, "%s %s", client->statusLine, gold_collected);
       displayStatus(totalStatus);
+      refresh();
+      mem_free(totalStatus);
     }
     else{
       displayStatus(client->statusLine);
     }
 
     refresh();
+    mem_free(goldStatus);
   }
   else {
     fprintf(stderr, "Error: Gold message from server could not be read.\n");
@@ -318,13 +324,14 @@ static void handle_error_message(client_t* client, const char* message)
     errorExplanation += 6;
   }
 
-  char* totalStatus = malloc(sizeof(char) * (strlen(errorExplanation) + strlen(client->statusLine) + 1));
+  char* totalStatus = mem_malloc(sizeof(char) * (strlen(errorExplanation) + strlen(client->statusLine) + 1));
 
   sprintf(totalStatus, "%s %s", client->statusLine, errorExplanation);
   // strncat(client->statusLine, errorExplanation, message_MaxBytes);
 
   displayStatus(totalStatus);
   refresh();
+  mem_free(totalStatus);
 }
 
 /******************* handle_display_message *****************/
@@ -335,7 +342,7 @@ static void handle_display_message(const char* message)
   const char* displayMessage = message + strlen("DISPLAY\n");
 
   // copy the game state
-  char* gameState = malloc(strlen(displayMessage) + 1);
+  char* gameState = mem_malloc(strlen(displayMessage) + 1);
   if (gameState == NULL) {
     fprintf(stderr, "Error: Memory allocation failed for gameState\n");
     return;
@@ -344,7 +351,7 @@ static void handle_display_message(const char* message)
 
   updateDisplay(gameState);
 
-  free(gameState);
+  mem_free(gameState);
 }
 
 /******************* handle_client_input *****************/

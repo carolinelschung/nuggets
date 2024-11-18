@@ -41,7 +41,7 @@
 # 
 
 OBJS = map.o #../lib/mem.o 
-LIBS = libcs50/libcs50.a support/support.a
+LIBS = ../libcs50/libcs50.a ../support/support.a
 
 # uncomment the following to turn on verbose memory logging
 #TESTING=-DMEMTEST

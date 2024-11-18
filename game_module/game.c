@@ -35,6 +35,7 @@ void printMap(char* map, game_t* game);
 static void print_item(FILE* fp, const char* key, void* item);
 player_t* getPlayerByLetter(char letter, game_t* game);
 void getPlayerByLetterHelper(void* arg, const char* key, void* item);
+static void player_delete(void* playerRaw);
 
 game_t* game_init(FILE* mapFile, int seed)
 {
@@ -189,90 +190,98 @@ void game_print(const game_t* game)
 
 
 
-/**************** game_test ****************/
-/* test scenario for game and map */
-void game_test(game_t* game)
-{
+// /**************** game_test ****************/
+// /* test scenario for game and map */
+// void game_test(game_t* game)
+// {
     
-    int x, y;
-    int seed = 21;  // Example seed value
+//     int x, y;
+//     int seed = 21;  // Example seed value
 
-    // Pass addresses of x, y, and seed to allow modification in map_player_init
-    map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
+//     // Pass addresses of x, y, and seed to allow modification in map_player_init
+//     map_player_init(game->map, &x, &y, &seed, game->mapWidth, game->mapHeight);
 
-    printf("Player initialized at position: (%d, %d)\n", x, y);
+//     printf("Player initialized at position: (%d, %d)\n", x, y);
 
-    char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
+//     char* visibleMap = mem_malloc((1+strlen(game->map)) * sizeof(char));
 
-    visibleMap[y*game->mapWidth+x] = '@';
+//     visibleMap[y*game->mapWidth+x] = '@';
 
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    char* mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
+//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+//     char* mapToPrint = map_decode(visibleMap, game);
+//     printf("%s", mapToPrint);
 
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
-    x = x - 1;
-    y = y + 1;
-    visibleMap[y*game->mapWidth+x] = '@';
+//     x = x - 1;
+//     y = y + 1;
+//     visibleMap[y*game->mapWidth+x] = '@';
 
-    char* previousMap = mem_malloc((1+strlen(visibleMap))*sizeof(char));
-    strcpy(previousMap, visibleMap);
+//     char* previousMap = mem_malloc((1+strlen(visibleMap))*sizeof(char));
+//     strcpy(previousMap, visibleMap);
 
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
+//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+//     map_merge(visibleMap, previousMap);
+//     mapToPrint = map_decode(visibleMap, game);
+//     printf("%s", mapToPrint);
 
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
-    x = x - 1;
-    y = y + 1;
-    visibleMap[y*game->mapWidth+x] = '@';
+//     x = x - 1;
+//     y = y + 1;
+//     visibleMap[y*game->mapWidth+x] = '@';
 
-    strcpy(previousMap, visibleMap);
+//     strcpy(previousMap, visibleMap);
 
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
+//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+//     map_merge(visibleMap, previousMap);
+//     mapToPrint = map_decode(visibleMap, game);
+//     printf("%s", mapToPrint);
 
-    visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
+//     visibleMap[y*game->mapWidth+x] = game->mapWithNoPlayers[y*game->mapWidth+x];
 
-    x = x + 20;
-    visibleMap[y*game->mapWidth+x] = '@';
+//     x = x + 20;
+//     visibleMap[y*game->mapWidth+x] = '@';
 
-    strcpy(previousMap, visibleMap);
+//     strcpy(previousMap, visibleMap);
 
-    map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(visibleMap, previousMap);
-    mapToPrint = map_decode(visibleMap, game);
-    printf("%s", mapToPrint);
-
-}
+//     map_get_visible(x, y, game->map, visibleMap, game->mapWidth, game->mapHeight);
+//     map_merge(visibleMap, previousMap);
+//     mapToPrint = map_decode(visibleMap, game);
+//     printf("%s", mapToPrint);
+//     mem_free(visibleMap);
+//     mem_free(previousMap);
+// }
 
 void game_delete(game_t* game) {
     if (game == NULL) return;
 
     // Free map memory
-    if (game->map) {
+    //if (game->map) {
         mem_free(game->map);
-    }
-    if (game->mapWithNoPlayers) {
+    //}
+    //if (game->mapWithNoPlayers) {
         mem_free(game->mapWithNoPlayers);
-    }
+    //}
+ 
 
     // Free gold piles
-    if (game->goldPileAmounts) {
+    //if (game->goldPileAmounts) {
         hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
-    }
+    //}
 
     // Free players hashtable
-    if (game->players) {
-        hashtable_delete(game->players, mem_free); // Pass mem_free if players have allocated memory
-    }
+    //if (game->players) {
+        hashtable_delete(game->players, player_delete); // Pass mem_free if players have allocated memory
+    //}
 
     mem_free(game);
+}
+
+static void player_delete(void* playerRaw){
+    player_t* player = (player_t*) playerRaw;
+    mem_free(player->playerMap);
+    mem_free(player);
 }
 
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
@@ -344,8 +353,8 @@ char* encodeMap(FILE* mapFile, game_t* game)
             game->mapWidth = lineLen;
         } else if (lineLen != game->mapWidth) {
             fprintf(stderr, "Error: Inconsistent line length in map file.\n");
-            free(line);
-            free(map);
+            mem_free(line);
+            mem_free(map);
             fclose(mapFile);
             return NULL;
         }
@@ -356,8 +365,8 @@ char* encodeMap(FILE* mapFile, game_t* game)
             char* newMap = realloc(map, bufferSize);
             if (newMap == NULL) {
                 fprintf(stderr, "Error: Memory reallocation failed.\n");
-                free(line);
-                free(map);
+                mem_free(line);
+                mem_free(map);
                 fclose(mapFile);
                 return NULL;
             }
@@ -367,7 +376,7 @@ char* encodeMap(FILE* mapFile, game_t* game)
         // Append line to map and update map size
         memcpy(map + mapSize, line, lineLen);
         mapSize += lineLen;
-        free(line);  // Free line after it’s copied to the map buffer
+        mem_free(line);  // Free line after it’s copied to the map buffer
         game->mapHeight++;
     }
 
@@ -528,7 +537,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
 
         // Free the gold amount after retrieval
         if (goldAmountPtr) {
-            mem_free(goldAmountPtr);
+            //mem_free(goldAmountPtr);
             hashtable_insert(game->goldPileAmounts, key, NULL);
         }
     }
@@ -546,7 +555,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(player->playerMap, visibleMap);
 
-    
+    mem_free(visibleMap);
 
     return true;
 }
@@ -574,3 +583,4 @@ static void print_item(FILE* fp, const char* key, void* item) {
     }
 
 }
+

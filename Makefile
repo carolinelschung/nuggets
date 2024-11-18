@@ -1,5 +1,5 @@
-# Makefile for CS50 Lab3 
-#   Builds and compiles all the data structures.
+# Makefile for CS50 Final Project 
+# Builds and compiles all the directories.
 #
 # Caroline Chung, November 2024
 
@@ -18,6 +18,10 @@ all:
 	$(MAKE) --directory=game_module
 	$(MAKE) --directory=server_module
 	$(MAKE) --directory=client_module
+	
+# For memory-leak tests
+VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
+
 
 # 'phony' targets are helpful but do not create any file by that name
 .PHONY: clean
