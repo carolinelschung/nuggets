@@ -53,7 +53,11 @@ game_t* game_init(FILE* mapFile, int seed)
     game->map = encodeMap(mapFile, game);
     game->goldRemaining = GoldTotal;
     game->players = hashtable_new(27);
+    game->hasSpectator = false;
 
+    for(int i = 0; i < MaxPlayers; i++){
+        game->activePlayers[i] = message_noAddr();
+    }
 
     // // initialize activePlayers array
     // for (int i = 0; i < MaxPlayers; i++) {
@@ -433,6 +437,7 @@ void placeGold(game_t* game) {
         // Find a random empty spot on the map
         bool spotFound = false;
         char key[12];
+        memset(key, 0, 12);
         while (!spotFound) {
             int randIndex = rand() % game->encodedMapLength;
             if (game->map[randIndex] == '.') {
@@ -463,7 +468,9 @@ char* game_getFinalScores(game_t* game)
         player_t* player = getPlayerByLetter(letter, game);
         if (player != NULL) {
             // Format the player's information and append to quitMessage
-            char playerInfo[100];
+            char playerInfo[200];
+            playerInfo[0] = '\0';
+            //memset(playerInfo, 0, 200);
             snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
                      player->playerLetter, player->goldCaptured, player->playerName);
             strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
@@ -525,6 +532,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     if (game->map[proposedIndex] == '*') {
         // Convert proposedIndex to a string for lookup in the hashtable
         char key[12];
+        memset(key, 0, 12);
         snprintf(key, sizeof(key), "%d", proposedIndex);
 
         int* goldAmountPtr = hashtable_find(game->goldPileAmounts, key);

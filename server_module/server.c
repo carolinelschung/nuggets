@@ -92,6 +92,7 @@ FILE* parseArgs(int argc, char* argv[], int* seed)
 bool handleInput(void* arg) 
 {
     char input[100];
+    input[0] = '\0';
     if (fgets(input, sizeof(input), stdin) != NULL) {
         if (strcmp(input, "quit\n") == 0) {
             printf("Server shutting down.\n");
@@ -123,6 +124,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
           
             if (strlen(playerName) > 0) {
                 char acceptedName[MAX_NAME_LENGTH + 1];
+                acceptedName[0] = '\0';
                 strncpy(acceptedName, playerName, MAX_NAME_LENGTH);
         
                 // Ensure null termination
@@ -142,12 +144,15 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                     fflush(stdout);
                 }
                 char response[5];
+                response[0] = '\0';
                 sprintf(response, "OK %c", player->playerLetter);
                 message_send(from, response);
                 char result[50];
+                result[0] = '\0';
                 sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
                 message_send(from, result);  // Send initial grid size
                 char gold[12];
+                gold[0] = '\0';
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
                 message_send(from, gold);
                 char first_part[] = "DISPLAY\n";
@@ -182,9 +187,11 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
 
         printf("Spectator joining.\n");
         char result[50];
+        result[0] = '\0';
         sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
         message_send(from, result);  // Send initial grid size
         char gold[12];
+        gold[0] = '\0';
         sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
         message_send(from, gold);
         // Send current game state
@@ -249,6 +256,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                        
                         message_send((game->activePlayers[i]), message);
                         char gold[12];
+                        gold[0] = '\0';
                         sprintf(gold, "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
                         message_send(game->activePlayers[i], gold);
                         
@@ -256,6 +264,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                             // send message to all players and the spectator printing out the result
                             char end_part[] = "QUIT GAME OVER:\n";
                             char end_message[message_MaxBytes];
+                            end_message[0] = '\0';
                             char* finalScores = game_getFinalScores(game);
                             snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
                             message_send(game->activePlayers[i], end_message);
@@ -268,20 +277,32 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 char first_part[] = "DISPLAY\n";
                 char* map = map_decode(game->map, game);
                 char message[message_MaxBytes];
+                message[0] = '\0';
                 snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                message_send(game->spectatorAddress, message);
+                if (game->hasSpectator) {
+                    message_send(game->spectatorAddress, message);
+                }
+                
                 char gold[12];
+                gold[0] = '\0';
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
-                message_send(game->spectatorAddress, gold);
+                if (game->hasSpectator) {
+                    message_send(game->spectatorAddress, gold);
+                }
+                
                 mem_free(map);
 
                 if (game->goldRemaining == 0) {
                     // send message to the spectator printing out the result
                     char end_part[] = "QUIT GAME OVER:\n";
                     char end_message[message_MaxBytes];
+                    end_message[0] = '\0';
                     char* finalScores = game_getFinalScores(game);
                     snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
-                    message_send(game->spectatorAddress, end_message);
+                    if (game->hasSpectator) {
+                        message_send(game->spectatorAddress, end_message);
+                    }
+                    
                     mem_free(finalScores);
                     
                 }
