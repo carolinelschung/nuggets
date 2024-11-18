@@ -233,6 +233,37 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
         printf("Key received from player: %c\n", key);
         /* Process the key command (e.g., player movement)*/
 
+        player_t* player = hashtable_find(game->players, message_stringAddr(from));
+        if (player == NULL) return false; // Exit if player is not found
+
+        if (player->food <= 0) {
+          message_send(from, "QUIT You have starved to death");
+          
+          // Remove player from game as they have "starved to death"
+          int indexToLeave = player->yPosition * game->mapWidth + player->xPosition;
+          if (!game->plain) {
+            game->map[indexToLeave] = '*';
+            // Insert gold at player's location
+            char key[12];
+            snprintf(key, sizeof(key), "%d", indexToLeave);
+            int* goldCapturedPtr = malloc(sizeof(int));
+            *goldCapturedPtr = player->goldCaptured;
+            game->goldRemaining += player->goldCaptured;
+            hashtable_insert(game->goldPileAmounts, key, goldCapturedPtr);
+          } else {
+            game->map[indexToLeave] = game->mapWithNoPlayers[indexToLeave];
+          }
+          
+          for (int i = 0; i < MaxPlayers; i++) {
+            if (message_eqAddr(game->activePlayers[i], from)) {
+                game->activePlayers[i] = message_noAddr();
+                break;
+            }
+          }
+          game->activePlayersCount--;
+          return false;
+        }
+
         // Array of valid controls
         char valid_chars[] = "QhljkyubnHLJKYUBN";
 
@@ -320,9 +351,22 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                         // fflush(stdout);
                        
                         message_send((game->activePlayers[i]), message);
-                        char gold[12];
-                        sprintf(gold, "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
-                        message_send(game->activePlayers[i], gold);
+                        char data[50];
+                        // Send gold or food message based on whether food is part of the game
+                        if (game->plain) {
+                          snprintf(data, sizeof(data), "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
+                        } else {
+                          snprintf(data, sizeof(data), "GOLD %d %d %d FOOD %d %d", 
+                            player->goldJustCaptured, player->goldCaptured, game->goldRemaining,
+                            player->foodJustCaptured, player->food);
+                        }
+
+                        // Ensure the message length is within the expected size limit
+                        if (strlen(data) < message_MaxBytes) {
+                            message_send(game->activePlayers[i], data);
+                        } else {
+                            fprintf(stderr, "Error: Message exceeds maximum length.\n");
+                        }
                         
                         if (game->goldRemaining == 0) {
                             // send message to all players and the spectator printing out the result

@@ -33,9 +33,10 @@ void placeGold(game_t* game);
 int getIndex(int x, int y, int mapWidth);
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
 void printMap(char* map, game_t* game);
-static void print_item(FILE* fp, const char* key, void* item);
+//static void print_item(FILE* fp, const char* key, void* item);
 player_t* getPlayerByLetter(char letter, game_t* game);
 void getPlayerByLetterHelper(void* arg, const char* key, void* item);
+void placeFood(game_t* game);
 
 game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)
 {
@@ -66,18 +67,16 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
     //     game->activePlayers[i] = NULL; // Zero-initialize each `addr_t` element
     // }
 
-    // Initialize player letters
-    for (int i = 0; i < 26; i++) {
-        game->playerLetters[i] = 'A' + i;
-    }
-
-
     game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
     strcpy(game->mapWithNoPlayers, game->map);
 
     game->activePlayersCount = 0;
 
     placeGold(game);
+
+    if (!game->plain) {
+        placeFood(game);
+    }
 
     printMap(game->map, game);
 
@@ -242,6 +241,7 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName) {
             game->activePlayers[i] = address;
             player->address = address;
             player->playerLetter = game->nextAvailableLetter;  // Assign the current available letter
+            player->food = game->encodedMapLength / 10;
             game->activePlayersCount++;
 
             // Prepare for the next player by moving to the next letter
@@ -293,6 +293,31 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName) {
     // If no available slot is found, free allocated memory and return NULL
     mem_free(player);
     return NULL;
+}
+
+char* game_getFinalScores(game_t* game)
+{   
+    // Allocate memory for the final scores message
+    char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
+    if (quitMessage == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
+        return NULL;
+    }
+
+    // Iterate over letters 'A' to 'Z' and build the message
+    for (char letter = 'A'; letter <= 'Z'; letter++) {
+        // Find player with the current letter
+        player_t* player = getPlayerByLetter(letter, game);
+        if (player != NULL) {
+            // Format the player's information and append to quitMessage
+            char playerInfo[100];
+            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
+                     player->playerLetter, player->goldCaptured, player->playerName);
+            strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
+        }
+    }
+
+    return quitMessage;  // Return the accumulated message
 }
 
 /************* HELPER FUNCTIONS *****************/
@@ -365,8 +390,6 @@ char* encodeMap(FILE* mapFile, game_t* game)
 }
 
 
-
-
 /**************** placeGold ****************/
 /* Places gold randomly on map for a given game
  * Init and populate goldPileAmount Hashtable
@@ -406,38 +429,62 @@ void placeGold(game_t* game) {
                 snprintf(key, sizeof(key), "%d", randIndex);
                 hashtable_insert(game->goldPileAmounts, key, pileSizePtr);
                 spotFound = true;
-                printf("Placed %d gold at position %d\n", *pileSizePtr, randIndex);
+                //printf("Placed %d gold at position %d\n", *pileSizePtr, randIndex);
             }
         }
     }
 
-    hashtable_print(game->goldPileAmounts, stdout, print_item);
+    //hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
 
-
-char* game_getFinalScores(game_t* game)
-{   
-    // Allocate memory for the final scores message
-    char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
-    if (quitMessage == NULL) {
-        fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
-        return NULL;
+/**************** placeFood ****************/
+/* Places food randomly on map for a given game
+ * Init and populate foodPileAmount Hashtable
+ */
+void placeFood(game_t* game) {
+    if (game == NULL || game->map == NULL || game->encodedMapLength == 0) {
+        fprintf(stderr, "Error: Game or map is not initialized, or map length is zero.\n");
+        return;
     }
 
-    // Iterate over letters 'A' to 'Z' and build the message
-    for (char letter = 'A'; letter <= 'Z'; letter++) {
-        // Find player with the current letter
-        player_t* player = getPlayerByLetter(letter, game);
-        if (player != NULL) {
-            // Format the player's information and append to quitMessage
-            char playerInfo[100];
-            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
-                     player->playerLetter, player->goldCaptured, player->playerName);
-            strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
+    int minFoodPiles = game->encodedMapLength / 100;
+    int maxFoodPiles = game->encodedMapLength / 80;
+
+    int numPiles = minFoodPiles + rand() % (maxFoodPiles - minFoodPiles + 1);
+    int remainingFood = game->foodRemaining - numPiles;
+
+    game->foodPileAmounts = hashtable_new(numPiles);
+
+    int pileValues[numPiles];
+    for (int i = 0; i < numPiles; i++) {
+        pileValues[i] = 1;
+    }
+
+    // Distribute the remaining food among the piles
+    while (remainingFood> 0) {
+        int randomPile = rand() % numPiles;
+        pileValues[randomPile]++;
+        remainingFood--;
+    }
+
+    for (int i = 0; i < numPiles; i++) {
+        int* pileSizePtr = malloc(sizeof(int));
+        *pileSizePtr = pileValues[i];
+        bool spotFound = false;
+        while (!spotFound) {
+            int randIndex = rand() % game->encodedMapLength;
+            if (game->map[randIndex] == '.') {
+                game->map[randIndex] = '$';
+                char key[12];
+                snprintf(key, sizeof(key), "%d", randIndex);
+                hashtable_insert(game->foodPileAmounts, key, pileSizePtr);
+                spotFound = true;
+                //printf("Placed %d food at position %d\n", *pileSizePtr, randIndex);
+            }
         }
     }
 
-    return quitMessage;  // Return the accumulated message
+    //hashtable_print(game->goldPileAmounts, stdout, print_item);
 }
 
 // Function to find a player by letter in the hashtable
@@ -485,11 +532,11 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
 
     char valid_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*' && strchr(valid_chars, proposedTile) == false) {
+    if (proposedTile != '.' && proposedTile != '#' && proposedTile != '*' && proposedTile != '$' && !strchr(valid_chars, proposedTile)) {
         return false;
     }
 
-    if (strchr(valid_chars, proposedTile) && game->plain) {
+    if ((strchr(valid_chars, proposedTile) || proposedTile == '$') && game->plain) {
         return false;
     }
 
@@ -544,6 +591,25 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         }
     }
 
+    if (game->map[proposedIndex] == '$') {
+        // Convert proposedIndex to a string for lookup in the hashtable
+        char key[12];
+        snprintf(key, sizeof(key), "%d", proposedIndex);
+
+        int* foodAmountPtr = hashtable_find(game->foodPileAmounts, key);
+        int foodAmountPlayerFound = *foodAmountPtr;
+
+        player->food += foodAmountPlayerFound;
+        player->foodJustCaptured = foodAmountPlayerFound;
+        game->map[proposedIndex] = '.';
+
+        // Free the gold amount after retrieval
+        if (foodAmountPtr) {
+            mem_free(foodAmountPtr);
+            hashtable_insert(game->foodPileAmounts, key, NULL);
+        }
+    }
+
     
     game->map[proposedIndex] = player->playerLetter;
 
@@ -557,7 +623,7 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(player->playerMap, visibleMap);
 
-    
+    player->food--; //decrement life;
 
     return true;
 }
@@ -576,7 +642,7 @@ void printMap(char* map, game_t* game)
 }
 
 
-static void print_item(FILE* fp, const char* key, void* item) {
+/*static void print_item(FILE* fp, const char* key, void* item) {
     int* amt = item;
     if (amt == NULL) {
         printf("(null)");
@@ -584,4 +650,4 @@ static void print_item(FILE* fp, const char* key, void* item) {
         printf("Key: %s, Item: %d", key, *amt);
     }
 
-}
+}*/

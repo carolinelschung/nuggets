@@ -84,7 +84,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
         yNew = y; // the fractional part is discarded in this case
         xNew = x + i;
         location = (yNew)*NC + xNew ;
-        if((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z'))){
+        if((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z'))){
           return false;
         }
       }
@@ -93,7 +93,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
         yNew = y; // the fractional part is discarded in this case
         xNew = x + i;
         location = (yNew)*NC + xNew ;
-        if((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z'))){
+        if((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z'))){
           return false;
         }
       }
@@ -116,7 +116,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
         yNew = y + i;
         xNew = x;
         location = (yNew)*NC + xNew;
-        if(masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')){
+        if(masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')){
           return false;
         }
       }
@@ -125,7 +125,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
         yNew = y + i; // the fractional part is discarded in this case
         xNew = x;
         location = (yNew)*NC + xNew;
-        if(masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')){
+        if(masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')){
           return false;
         }
       }
@@ -157,7 +157,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           printf("your math is wrong\n");
           return true;
         }
-        if((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + NC] != '.' && masterMap[location + NC] != '*' && (masterMap[location+NC] < 'A' || masterMap[location+NC] > 'Z'))){
+        if((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + NC] != '.' && masterMap[location + NC] != '*' && masterMap[location + NC] != '$' && (masterMap[location+NC] < 'A' || masterMap[location+NC] > 'Z'))){
           return false;
         }
       }
@@ -171,7 +171,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           printf("your math is wrong\n");
           return true;
         }
-        if((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + NC] != '.' && masterMap[location + NC] != '*' && (masterMap[location+NC] < 'A' || masterMap[location+NC] > 'Z'))){
+        if((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + NC] != '.' && masterMap[location + NC] != '*' && masterMap[location + NC] != '$' && (masterMap[location+NC] < 'A' || masterMap[location+NC] > 'Z'))){
           return false;
         }
       }
@@ -189,7 +189,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           printf("your math is wrong\n");
           return true;
         }
-        if ((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + 1] != '.' && masterMap[location + 1] != '*'  && (masterMap[location+1] < 'A' || masterMap[location+1] > 'Z'))){
+        if ((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + 1] != '.' && masterMap[location + 1] != '*' && masterMap[location + 1] != '$'  && (masterMap[location+1] < 'A' || masterMap[location+1] > 'Z'))){
           return false;
         }
       }
@@ -207,7 +207,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           printf("your math is wrong\n");
           return true;
         }
-        if ((masterMap[location] != '.' && masterMap[location] != '*' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + 1] != '.' && masterMap[location + 1] != '*' && (masterMap[location+1] < 'A' || masterMap[location+1] > 'Z'))){
+        if ((masterMap[location] != '.' && masterMap[location] != '*' && masterMap[location] != '$' && (masterMap[location] < 'A' || masterMap[location] > 'Z')) && (masterMap[location + 1] != '.' && masterMap[location + 1] != '*' && masterMap[location + 1] != '$' && (masterMap[location+1] < 'A' || masterMap[location+1] > 'Z'))){
           return false;
         }
       }
@@ -239,7 +239,7 @@ Function that takes in the visible map and the payer's presious map and merges t
 void map_merge(char* playerMap, char* visibleMap){
   int length = strlen(playerMap);
   for(int i = 0; i < length; i++){
-    if(playerMap[i] == '*' || (playerMap[i] >= 'A' && playerMap[i] <= 'Z')){
+    if(playerMap[i] == '*' || playerMap[i] == '$'|| (playerMap[i] >= 'A' && playerMap[i] <= 'Z')){
       playerMap[i] = '.';
     }
     if(visibleMap[i] != ' '){

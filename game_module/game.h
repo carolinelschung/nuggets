@@ -34,6 +34,8 @@ typedef struct player {
     int xPosition;
     int yPosition;
     int goldCaptured;
+    int food;
+    int foodJustCaptured;
 } player_t;
 
 typedef struct game {
@@ -50,12 +52,13 @@ typedef struct game {
     bool hasSpectator;
     addr_t spectatorAddress;
     int seed;
-    char playerLetters[26];
     char nextAvailableLetter;
     int goldRemaining;
     int minGoldPiles;
     int maxGoldPiles;
     bool plain;
+    int foodRemaining;
+    hashtable_t* foodPileAmounts;
 } game_t;
 
 /**************** functions ****************/
