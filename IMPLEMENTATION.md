@@ -45,7 +45,6 @@ typedef struct client {
 ```
 
 ### Definition of function protoytypes and Pseudocode
-------------
 
 ##### `void parseArgs(client_t* client, int argc, char* argv[])`
 Validates command-line arguments for client and configures initial state based on the type (player or spectator).
