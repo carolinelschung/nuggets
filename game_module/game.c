@@ -572,6 +572,8 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     printf("x %d, y %d\n", proposedX, proposedY);
     
     char* visibleMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
+    printf("The length of the visible map is %d\n",(int)strlen(visibleMap));
+    fflush(stdout);
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
     map_merge(player->playerMap, visibleMap);
 
