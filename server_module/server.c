@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 
   // Clean up after the loop ends
   game_delete(game);
+  fclose(stdout);
   message_done();
   return 0;
   
@@ -366,6 +367,7 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                         message_send(game->spectatorAddress, end_message);
                       }
                       mem_free(finalScores);
+                      return true;
                       
                   }
 

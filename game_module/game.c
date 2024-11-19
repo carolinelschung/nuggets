@@ -205,21 +205,21 @@ void game_delete(game_t* game) {
 
     // Free map memory
     //if (game->map) {
-        mem_free(game->map);
+    mem_free(game->map);
     //}
     //if (game->mapWithNoPlayers) {
-        mem_free(game->mapWithNoPlayers);
+    mem_free(game->mapWithNoPlayers);
     //}
  
 
     // Free gold piles
     //if (game->goldPileAmounts) {
-        hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
+    hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
     //}
 
     // Free players hashtable
     //if (game->players) {
-        hashtable_delete(game->players, player_delete); // Pass mem_free if players have allocated memory
+    hashtable_delete(game->players, player_delete); // Pass mem_free if players have allocated memory
     //}
 
     mem_free(game);
@@ -229,6 +229,7 @@ void game_delete(game_t* game) {
 static void player_delete(void* playerRaw){
     player_t* player = (player_t*) playerRaw;
     mem_free(player->playerMap);
+    mem_free(player->playerName);
     mem_free(player);
 }
 
@@ -375,6 +376,7 @@ char* encodeMap(FILE* mapFile, game_t* game)
     printf("width: %d, height %d\n", game->mapWidth, game->mapHeight);
     game->encodedMapLength = game->mapWidth * game->mapHeight;
 
+    fclose(stdout);
     fclose(mapFile);
     return map;  // Return the map buffer
 }
@@ -435,6 +437,7 @@ char* game_getFinalScores(game_t* game)
 {   
     // Allocate memory for the final scores message
     char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
+    quitMessage[0] = '\0';
     if (quitMessage == NULL) {
         fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
         return NULL;
@@ -572,10 +575,11 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     printf("x %d, y %d\n", proposedX, proposedY);
     
     char* visibleMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
+    memset(visibleMap, 0, strlen(game->map) + 1);
     printf("The length of the visible map is %d\n",(int)strlen(visibleMap));
     fflush(stdout);
     map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(player->playerMap, visibleMap);
+    map_merge(player->playerMap, visibleMap, game->mapWidth, game->mapHeight);
 
     mem_free(visibleMap);
 

@@ -12,18 +12,34 @@
 #include "../libcs50/mem.h"
 
 
+// LOCAL FUNCTIONS
+
 /*
 Helper function that determines the visibility of one point and returns true or false
 */
 static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int NC);
 
 
-/*
-Function that takes in seed and based on it returns a player's starting coordinates on the masterMap.
+/// GLOBAL FUNCTIONS 
+
+/* *** map_player_init ***
+
+Inputs:
+char* mainMap - the always up to date map with all players and all gold passed from game module
+int* x - empty initializaed pointer where the number of column the player is in will be stored
+int* y - empty initializaed pointer where the number of row the player is in will be stored
+int* seed - a seed for randomization optionally provided by the user
+const int NC - number of columns in the map 
+const int NR - number of rows in the map
+
+Function that takes in seed and based on it returns a player's starting coordinates on the mainMap.
+
 */
 void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, const int NR, game_t* game){
+  // The location of the character in the map character string
   int location = 0;
   
+  // If seed is not null, use it to generate pseudo-random numbers 
   if(seed == NULL){
     srand(getpid());
   }else{
@@ -31,6 +47,7 @@ void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, c
     srand(*seed + game->activePlayersCount);
   }
 
+  // Geerate new random numbers untill the location on map is a valid empty room point
   while(masterMap[location] != '.'){
     
     *x = rand() % NC;
@@ -39,8 +56,18 @@ void map_player_init(char* masterMap, int* x, int* y, int* seed, const int NC, c
   }
 }
 
-/*
-Function that takes in a player's coordinates and the master map and outputs the visibleMap (only what the payer sees immediately)  
+/* *** map_get_visible ***
+
+Inputs:
+int x - a vaild player posistion (number of column the player is in)
+int y - a vaild player posistion (number of row the player is in)
+char* mainMap - the always up to date map with all players and all gold passed from game module
+char* visibleMap - an empty initialized string that has enough memory allocated to store a map
+const int NC - number of columns in the map 
+const int NR - number of rows in the map
+
+Function that takes in a player's coordinates and the main map and puts the visibleMap (only what the payer sees immediately) 
+into a previously allocated string. 
 
 */
 void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int NC, const int NR){
@@ -49,36 +76,35 @@ void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int 
   for(int i = 0; i < length; i++){
     ptY = i/NC;
     ptX = i - ptY*NC;
-    //printf("got to is visible function call, %d, %d, %d\n", i, NC, NR);
-    //fflush(stdout);
     if(isVisible(x, y, ptX, ptY, masterMap, NC)){
       visibleMap[i] = masterMap[i];
     }else{
       visibleMap[i] = ' ';
     }
-    //printf("visible %c and master %c\n", visibleMap[i], masterMap[i]);
-    //fflush(stdout);
   }
 
+  // put the player on the map
   visibleMap[y*NC+x] = '@';
-  // for each character on the masterMap (0 to strlen(masterMap))
-  //   calculate coordinates of the point in (ptX, ptY) form
-  //   if isVisible(x, y, ptX, ptY, masterMap)
-  //       visibleMap(i) = masterMap(i);
-  //   else 
-  //       visibleMap(i) = ' ';
 }
 
+/* ** (local) isVisible ***
+
+Inputs:
+int x - player location (colunm)
+int y - player location (row)
+int ptX - locaiton of the point we want to determine the visibility of (column)
+int ptY - locaiton of the point we want to determine the visibility of (row)
+char* mainMap - the always up to date map with all players and all gold passed from game module
+const int NC - number of columns in the map 
+
+*/
 static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int NC){
   float k; // k is the slope coefficient
   int yNew, xNew;
   int location;
-  //printf("got to k  x %d y %d ptX %d ptY %d\n", x, y, ptX, ptY);
-  //fflush(stdout);
+  
   if(ptY == y){
 
-    //printf("got to first for\n");
-    //fflush(stdout);
     if(x - ptX < 0){
       for(int i = 1; i < abs(x - ptX); i++){
         yNew = y; // the fractional part is discarded in this case
@@ -99,18 +125,10 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
       }
     }
     
-
-    //printf("out of second for\n");
-    //fflush(stdout);
     return true;
 
   }else if(ptX == x){
-    //k = 1;
-
-    //printf("got to second for\n");
-    //fflush(stdout);
-
-
+    
     if(y - ptY > 0){
       for(int i = -1; i > (-1)*(y - ptY); i--){
         yNew = y + i;
@@ -131,8 +149,6 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
       }
     }
     
-    //printf("out of second for\n");
-    //fflush(stdout);
     return true;
 
   }else{
@@ -141,13 +157,8 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
     deltaY = ptY - y;
     deltaX = ptX - x;
     k = deltaY/deltaX;
-    //printf("%d %d %d %d %f\n", ptX, ptY, x, y, k);
-
 
     if((x-ptX) > 0){
-      //kSign = xSign*ySign;
-      //printf("got to first for\n");
-      //fflush(stdout);
       for(int i = -1; i > (-1)*(x - ptX); i--){
         intermediate = i*k;
         yNew = y + intermediate; // the fractional part is discarded in this case
@@ -178,8 +189,6 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
     }
 
     if((y - ptY) > 0){
-      //printf("got to second for\n");
-      //fflush(stdout);
       for(int i = -1; i > (-1)*(y - ptY); i--){
         intermediate = i*(1/k);
         xNew = x + intermediate; // (round this value down)
@@ -193,11 +202,7 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           return false;
         }
       }
-      //printf("out of second for\n");
-      //fflush(stdout);
     }else{
-      //printf("got to second for\n");
-      //fflush(stdout);
       for(int i = 1; i < abs(y - ptY); i++){
         intermediate = i*(1/k);
         xNew = x + intermediate; // (round this value down)
@@ -211,36 +216,28 @@ static bool isVisible(int x, int y, int ptX, int ptY, char* masterMap, const int
           return false;
         }
       }
-      //printf("out of second for\n");
-      //fflush(stdout);
     }
     
     return true;
   }
-// calculate slope coefficient between the two point = k (i.e. rise/run)
-// for(int i = 1; i < |x - ptX|; i++)
-//     yNew = x + i*k (round this value down)
-//     xNew = x + i
-//     if both masterMap(xNew, yNew) and masterMap(xNew, yNew+1) are non '.'/letter/gold
-//         return false
-// for(int i = 1; i < |y - ptY|; i++)
-//     xNew = Y + i*(1/k) (round this value down)
-//     yNew = y + i
-//     if both masterMap(xNew, yNew) and masterMap(xNew+1, yNew) are non '.'/letter/gold
-//         return false
-
-// return true
 }
 
-/*
-Function that takes in the visible map and the payer's presious map and merges them omitting the gold from previous map. 
+/* *** map_merge ***
+
+char* playerMap - most relevant map of the player (what the user saw before the current update)
+char* visibleMap - map of what the player sees immediately from the spot they are at (generated by map_get_visible)
+int NC and int NR - dimentions of the map
+
+Function that takes in the visible map and the payer's presious map and merges them 
+omitting the gold and other players from previous map. Most relevant map of the player 
+is in playerMap as a result of this function.
 
 */
-void map_merge(char* playerMap, char* visibleMap){
-  if(playerMap == NULL){
+void map_merge(char* playerMap, char* visibleMap, int NC, int NR){
+  if(playerMap == NULL || visibleMap == NULL){
     return;
   }
-  int length = strlen(playerMap);
+  int length = NC*NR;
   for(int i = 0; i < length; i++){
     if(playerMap[i] == '*' || (playerMap[i] >= 'A' && playerMap[i] <= 'Z')){
       playerMap[i] = '.';
@@ -249,16 +246,21 @@ void map_merge(char* playerMap, char* visibleMap){
       playerMap[i] = visibleMap[i];
     }
   }
-  // for each character on the masterMap (0 to strlen(playerMap))
-  //   erase gold or other player:
-  //   if playerMap(i) == golr or other letter 
-  //       playerMap(i) = '.'
-  //   insert whatever is coming from the new visible map:
-  //   if visibleMap != ' '
-  //       playerMap(i) = visibleMap(i)
 }
 
+/* *** map_decode ***
 
+Inputs:
+game_t* game - the main game struct to access dimensions 
+char* map - pointer to the map 
+
+Output:
+char* (result) - the resulting map with \n symbols, ready for dysplay
+
+The function takes in map as a character sting with no \n, and inserts them after
+each line so the map can be printed in client without extra calculations. 
+
+*/
 char* map_decode(char* map, game_t* game)
 {
     // Calculate the length of the new string including newlines and null terminator

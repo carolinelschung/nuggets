@@ -24,7 +24,7 @@ void map_get_visible(int x, int y, char* masterMap, char* visibleMap, const int 
 /*
 Function that takes in the visible map and the payer's presious map and merges them omitting the gold from previous map. 
 */
-void map_merge(char* playerMap, char* visibleMap);
+void map_merge(char* playerMap, char* visibleMap, int NC, int NR);
 
 
 char* map_decode(char* map, game_t* game);
