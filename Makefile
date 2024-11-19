@@ -1,4 +1,4 @@
-# Makefile for CS50 Final Project 
+# Makefile for CS50 Final Project, Team 10
 # Builds and compiles all the directories.
 #
 # Caroline Chung, November 2024

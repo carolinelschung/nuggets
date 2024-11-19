@@ -1,5 +1,5 @@
 /* 
- * game.h - header file for CS50 Nuggets game module
+ * game.h - header file for CS50 Nuggets game module (Team 10)
  *
  * A *game* module for the CS50 Nuggets game, responsible for managing 
  * the overall game state, including player and spectator data, map 

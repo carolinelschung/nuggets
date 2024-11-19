@@ -1,4 +1,4 @@
-# Makefile for 'client' program
+# Makefile for 'client' module (Team 10)
 # Caroline Chung, November 12, 2024
 
 # Object files

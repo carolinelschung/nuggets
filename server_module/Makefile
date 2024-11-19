@@ -1,4 +1,4 @@
-# Makefile for 'server' module
+# Makefile for 'server' module (Team 10)
 # Joseph Quaratiello, November 2024
 
 # Compiler and flags

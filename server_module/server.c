@@ -1,5 +1,5 @@
 /* 
- * server.c - CS50 Nuggets game module
+ * server.c - CS50 Nuggets server module, Team 10
  *
  * see server.h for more information.
  *
@@ -143,13 +143,6 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
     
     printf("Received message from %s: %s\n", message_stringAddr(from), buf);
 
-    // Check whether the incoming message is from a player or a spectator
-    // if (game->activePlayersCount < 26) {
-
-    // }
-    // else {
-
-    // }
     if (strncmp(buf, "PLAY ", 5) == 0) {
         if (game->activePlayersCount < 26) {
             const char* playerName = buf + 5;  // Extract player name
@@ -289,18 +282,10 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                 }
               }
             }
-            // else {
-                
-            // }
-            // need a boolean here to check whether the move was valid or not
-            // It fails inside the helper function of game_playerMove
+            
             else {
               bool valid = game_playerMove(from, game, key);
-            /*if new_gold_remaining is not equal to num_gold_remaining, 
-            we wanna send gold message to all the clients as well in the loop */
-            // printf("{%d}\n", valid);
-            // fflush(stdout);
-            
+           
               if (valid) {
                   
                   for (int i = 0; i < MaxPlayers; i++) {

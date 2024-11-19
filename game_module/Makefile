@@ -1,4 +1,4 @@
-# Makefile for 'game' module
+# Makefile for 'game' module (Team 10)
 # Caroline Chung, November 17, 2024
 
 # Object files

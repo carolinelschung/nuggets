@@ -1,4 +1,4 @@
-// Source code of map modlue for the Nuggets project
+// Source code of map module for the Nuggets project
 // CS50, 24F
 // Team 10, Anna Filyurina, Nov. 2024
 

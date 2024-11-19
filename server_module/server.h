@@ -1,3 +1,11 @@
+/* 
+ * server.h - CS50 Nuggets server module, Team 10
+ *
+ * Runs the game, handles messaging and calls everything required for the game
+ *
+ * Joseph Quaratiello, Nafis Saadiq Bhuiyan, November 2024
+ */
+
 #ifndef SERVER_H
 #define SERVER_H
 

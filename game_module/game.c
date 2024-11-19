@@ -1,5 +1,5 @@
 /* 
- * game.c - CS50 Nuggets game module
+ * game.c - CS50 Nuggets game module (Team 10)
  *
  * see game.h for more information.
  *
@@ -48,14 +48,15 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
     } else {
         srand(getpid());
     }
-
+ 
+    // Initialize variables
     game->seed = seed;
     game->goldRemaining = gold;
     game->minGoldPiles = minGoldPiles;
     game->maxGoldPiles = maxGoldPiles;
     game->plain = plain;
 
-
+    // Encoding map
     game->map = encodeMap(mapFile, game);
     game->players = hashtable_new(27);
 
@@ -203,24 +204,13 @@ void game_print(const game_t* game)
 void game_delete(game_t* game) {
     if (game == NULL) return;
 
-    // Free map memory
-    //if (game->map) {
     mem_free(game->map);
-    //}
-    //if (game->mapWithNoPlayers) {
+
     mem_free(game->mapWithNoPlayers);
-    //}
  
-
-    // Free gold piles
-    //if (game->goldPileAmounts) {
     hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
-    //}
-
-    // Free players hashtable
-    //if (game->players) {
+  
     hashtable_delete(game->players, player_delete); // Pass mem_free if players have allocated memory
-    //}
 
     mem_free(game);
 }
@@ -491,9 +481,6 @@ void getPlayerByLetterHelper(void* arg, const char* key, void* item)
         *foundPlayerPtr = player;  // Set the found player via the pointer
     }
 }
-
-
-//printf("%-2c %10d %-10s\n", 'A' + i, scores[i], players[i]);
 
 
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
