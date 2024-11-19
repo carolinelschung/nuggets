@@ -14,8 +14,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <curses.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
@@ -39,10 +37,8 @@ bool handleClientInput(void* arg);
 void updateDisplay(char* gameState);
 void displayStatusLine(const char* message);
 
-
 /* helper functions for handleServerMessage */
-void handleGridMessage(const char* message);
-void checkDisplayDimensions(int num_rows, int num_cols);
+void handleGridMessage(client_t* client, const char* message);
 void handleGoldMessage(client_t* client, const char* message); 
 void handleOkMessage(client_t* client, const char* message); 
 static void handleQuitMessage(const char* message);
@@ -175,7 +171,7 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
   log_s("Message received: %s", message);
 
   if (strncmp(message, "GRID ", strlen("GRID ")) == 0) {
-    handleGridMessage(message);
+    handleGridMessage(client, message);
   }
   else if (strncmp(message, "GOLD ", strlen("GOLD ")) == 0) {
     handleGoldMessage(client, message);
@@ -203,40 +199,33 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
 
 /******************* handleGridMessage *****************/
 /* see client.h for description */
-void handleGridMessage(const char* message)
+void handleGridMessage(client_t* client, const char* message)
 {
   int rows; // variable to hold integer from server message
   int cols; // variable to hold integer from server message
 
-  // update game state to have most curr rows and cols 
-  if (sscanf(message, "GRID %d %d", &rows, &cols) == 2) {
-    // check to make sure the dimensions of the display are valid
-    checkDisplayDimensions(rows, cols);
-  }
-  else {
-    fprintf(stderr, "Error: GRID message from server could not be read\n");
-    return;
-  }
-}
+  int width, height; // variables to hold screen dimensions
 
-/******************* checkDisplayDimensions *****************/
-/* see client.h for description */
-void checkDisplayDimensions(int num_rows, int num_cols) 
-{
-  int max_rows; // the number of rows the display could show
-  int max_cols; // the number of columns the display could show
+  // read the message to get the map dimensions
+  sscanf(message, "GRID %d %d", &rows, &cols);
 
-  // get curr display size
-  getmaxyx(stdscr, max_rows, max_cols); 
+  getmaxyx(stdscr, height, width);
 
-  if (max_rows < (num_rows + 1) || max_cols < (num_cols + 1)) { // if current display is not large enough 
-    mvprintw(0, 0, "Error: Screen size of display needs to be at least %d rows and %d columns", num_rows + 1, num_cols + 1);
+  while (width < cols || height < rows) { // check to make sure screen dimensions are large enough
+    mvprintw(0, 0, "Your window must be at least %d high", rows);
+    mvprintw(1, 0, "Your window must be at least %d wide", cols);
+    mvprintw(2, 0, "Resize your window, and press Enter to continue");
     refresh();
-    getmaxyx(stdscr, num_rows, num_cols); // get current display size again 
+
+    char ch = getch(); // if user presses enter, loop again to check
+    if (ch == '\n') {
+      getmaxyx(stdscr, height, width);
+    }
   }
 
   clear();
-  return;
+  refresh();
+
 }
 
 /******************* handleGoldMessage *****************/

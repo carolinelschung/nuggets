@@ -1,7 +1,7 @@
 /* 
  * client.h - header file for client module in the Nuggets game
  *
- * client.c handles the client side implementation of the nuggets game. 
+ * client handles the client side implementation of the nuggets game. 
  * It initializes the client as either player or spectator, if they are a player
  * stdin is collected and sent to the server and then the server sends back a message containing relavant
  * info to update the client's screen.  
@@ -14,42 +14,27 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include "message.h" // For addr_t
+#include <string.h>
+#include <stdlib.h>
+#include <curses.h>
+#include "ctype.h"
+#include "log.h"
+#include "mem.h"
+#include "message.h"
 
 /**************** global types ****************/
 
 // Struct to hold necessary starting info for client initialization
-typedef struct client_init client_init_t;
-
-// Struct to hold current game state information
-typedef struct client_game_state client_game_state_t;
-
+typedef struct client client_t;
 /**************** functions ****************/
-
-/******************* initialize_client *****************/
-/*
- * initialize_client - inititalizes the connection to server, calls parse args to populate 
- * client information, then sends either 'PLAY' or 
- * 'SPECTATE' message to server.
- *
- * Caller provides:
- *   state - pointer to client_game_state_t struct to store game state info  
- *   serverAddress - address of the server
- *   logFP - location of where relevant output goes 
- *   argc - the number of command line args
- *   argv - array of command line args 
- * Returns:
- *   True if initialization works.  False otherwise.
- */
-bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* logFP, int argc, char* argv[]);
 
 /******************* parseArgs *****************/
 /*
  * parseArgs - Validates command line arguments.
  *
  * Caller provides:
- *   client - a pointer to a client_init_t struct that holds all info needed about 
- *            client to initialize game
+ *   client - a pointer to a client_t struct that holds all info needed about 
+ *            client 
  *   argc - number of command line args
  *   argv - array of command line args
  *     argv[1] - hostname
@@ -58,77 +43,59 @@ bool initialize_client(client_game_state_t* state, addr_t* serverAddress, FILE* 
  * Returns:
  *   nothing
  */
-void parseArgs(client_init_t* client, int argc, char* argv[]);
+void parseArgs(client_t* client, int argc, char* argv[]);
 
-/******************* initialize_display *****************/
+/******************* initializeDisplay *****************/
 /*
- * initialize_display - sets up the display initially and checks for 
- * valid window size based on "GRID" message from server.
+ * initializeDisplay - starts ncurses
  *
  * Caller provides:
- *   state - pointer to client_game_state_t struct to store game state info  
- *   num_rows - number of rows for the display
- *   num_cols - number of columns for the display
+ *   Nothing
  * Returns:
- *   True if initialization of display works.  False otherwise.
+ *   Nothing
  */
-bool initialize_display(client_game_state_t* state, int num_rows, int num_cols);
+static void initializeDisplay(); 
 
-/******************* handle_server_message *****************/
+/******************* handleServerMessage *****************/
 /*
- * handle_server_message - handles server messages, calling relevant
+ * handleServerMessage - handles server messages, calling relevant
  * helper functions as necessary
  * 
  * Caller provides:
- *   arg - pointer to client_game_state_t struct containing current game state
+ *   arg - pointer to client_t struct containing client info
  *   from - address of the server 
  *   message - message received from the server
  * Notes:
  *   Server messages are expected to start with "OK", "GRID", "DISPLAY",
  *   "GOLD", "QUIT", or "ERROR"
  * Returns:
- *   True if message handling works.  False otherwise.
+ *   True to stop message_loop.  False to keep message_loop going.
  */
-static bool handle_server_message(void* arg, const addr_t from, const char* message);
+static bool handleServerMessage(void* arg, const addr_t from, const char* message);
 
-/******************* handle_grid_message *****************/
+/******************* handleGridMessage *****************/
 /*
- * handle_grid_message - handles "GRID" server messages, updating client game state
- * and checking that the display is sufficiently large using helper function called
- * check_display_dimensions.
+ * handleGridMessage - handles "GRID" server messages, updating client game state
+ * and checking that the display is sufficiently large.
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state
+ *   client - pointer to client_t struct 
  *   message - message from server
  * Notes:
- *   message from server should be formatted as "GRID rows cols", where the explanation 
- *   is a string to be printed so the client can see on their end.
+ *   message from server should be formatted as "GRID rows cols".
  * Returns:
  *   nothing
  */
-void handle_grid_message(client_game_state_t* state, const char* message);
+void handleGridMessage(client_t* client, const char* message);
 
-/******************* check_display_dimensions *****************/
+/******************* handleGoldMessage *****************/
 /*
- * check_display_dimensions - checks for valid dimensions of the display
- * compared to the number of rows and columns needed for the map
- * 
- * Caller provides:
- *   num_rows - number of rows needed for the map
- *   num_cols - number of columns needed for the map
- * Returns:
- *   True if display is sufficiently large.  False otherwise.
- */
-static bool check_display_dimensions(int num_rows, int num_cols);
-
-/******************* handle_gold_message *****************/
-/*
- * handle_gold_message - reads the relevant message from server, 
+ * handleGoldMessage - reads the relevant message from server, 
  * parsing message for n (amount of gold collected in pile), p 
  * (amount of gold in purse), and r (amount of gold remaining) 
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state
+ *   client - pointer to client_t struct
  *   message - message from server
  * Notes:
  *   message from server should be formatted as "GOLD n p r", where the explanation 
@@ -136,26 +103,37 @@ static bool check_display_dimensions(int num_rows, int num_cols);
  * Returns:
  *   nothing
  */
-void handle_gold_message(client_game_state_t* state, const char* message);
+void handleGoldMessage(client_t* client, const char* message); 
 
-/******************* update_status_line *****************/
+/******************* displayStatusLine *****************/
 /*
- * update_status_line - updates the status line to have the most current data from the server
+ * displayStatusLine - updates the status line on screen for the user 
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state 
+ *   message - message to be displayed in the status line 
  * Returns:
  *   nothing
  */
-void update_status_line(client_game_state_t* state);
+void displayStatusLine(const char* message);
 
-/******************* handle_ok_message *****************/
+/******************* updateDisplay *****************/
 /*
- * handle_ok_message - handles ok messages by storing the character as the player symbol
+ * updateDisplay - updates the display on screen for the user 
+ * 
+ * Caller provides:
+ *   gameState - the display with the map to be displayed on screen for the player
+ * Returns:
+ *   nothing
+ */
+void updateDisplay(char* gameState);
+
+/******************* handleOkMessage *****************/
+/*
+ * handleOkMessage - handles ok messages by storing the character as the player symbol
  * in the client game state struct
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state 
+ *   client - pointer to client_t struct containing current game state 
  *   message - message from server 
  * Notes:
  *   message from server should be formatted as "OK L", where 'L' 
@@ -163,14 +141,13 @@ void update_status_line(client_game_state_t* state);
  * Returns:
  *   nothing
  */
-void handle_ok_message(client_game_state_t* state, const char* message);
+void handleOkMessage(client_t* client, const char* message); 
 
-/******************* handle_quit_message *****************/
+/******************* handleQuitMessage *****************/
 /*
- * handle_quit_message - handles quit messages printing the provided explanantion
+ * handleQuitMessage - handles quit messages printing the provided explanantion
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state 
  *   message - message from server 
  * Notes:
  *   message from server should be formatted as "QUIT explanantion", where the explanation 
@@ -178,15 +155,15 @@ void handle_ok_message(client_game_state_t* state, const char* message);
  * Returns:
  *   nothing
  */
-static void handle_quit_message(client_game_state_t* state, const char* message);
+static void handleQuitMessage(const char* message);
 
-/******************* handle_error_message *****************/
+/******************* handleErrorMessage *****************/
 /*
- * handle_error_message - handles error messages by updating the status line for the client
+ * handleErrorMessage - handles error messages by updating the status line for the client
  * with the explanantion parsed from the server message
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state 
+ *   client - pointer to client_t struct containing current game state 
  *   message - message from server 
  * Notes:
  *   message from server should be formatted as "ERROR explanantion", where the explanation 
@@ -194,7 +171,7 @@ static void handle_quit_message(client_game_state_t* state, const char* message)
  * Returns:
  *   nothing
  */
-static void handle_error_message(client_game_state_t* state, const char* message);
+static void handleErrorMessage(client_t* client, const char* message);
 
 /******************* handle_display_message *****************/
 /*
@@ -202,7 +179,6 @@ static void handle_error_message(client_game_state_t* state, const char* message
  * the server
  * 
  * Caller provides:
- *   state - pointer to client_game_state_t struct containing current game state 
  *   message - message from server 
  * Notes:
  *   message from server should be formatted as "DISPLAY explanation", where the explanation 
@@ -210,11 +186,11 @@ static void handle_error_message(client_game_state_t* state, const char* message
  * Returns:
  *   nothing
  */
-static void handle_display_message(client_game_state_t* state, const char* message);
+static void handleDisplayMessage(const char* message);
 
-/******************* handle_client_input *****************/
+/******************* handleClientInput *****************/
 /*
- * handle_client_input - handles client input, sends message thats appropriately
+ * handleClientInput - handles client input, sends message thats appropriately
  * formatted to the server
  * 
  * Caller provides:
@@ -225,6 +201,6 @@ static void handle_display_message(client_game_state_t* state, const char* messa
  * Returns:
  *   True if the loop should exit on EOF or fatal error, false otherwise.
  */
-static bool handle_client_input(void* arg);
+bool handleClientInput(void* arg);
 
 #endif // __CLIENT_H

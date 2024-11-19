@@ -16,7 +16,6 @@ MAKE = make
 # For memory-leak tests
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
 
-
 # Target for the main client program
 client: $(OBJS)
 	$(CC) $(CFLAGS) $^ $(LIBS) -o $@
