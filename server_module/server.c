@@ -23,6 +23,7 @@
 // Function prototypes
 bool handleInput(void* arg);
 bool handleMessage(void* arg, const addr_t from, const char* buf);
+void updateAllPlayers(game_t* game);
 
 int main(int argc, char* argv[])
 {
@@ -152,22 +153,18 @@ bool handleInput(void* arg)
 bool handleMessage(void* arg, const addr_t from, const char* buf) 
 {
     game_t* game = (game_t*) arg;
-    
+
     printf("Received message from %s: %s\n", message_stringAddr(from), buf);
 
     if (strncmp(buf, "PLAY ", 5) == 0) {
+        // Handle player joining
         if (game->activePlayersCount < 26) {
-            const char* playerName = buf + 5;  // Extract player name
-          
+            const char* playerName = buf + 5;
             if (strlen(playerName) > 0) {
                 char acceptedName[MAX_NAME_LENGTH + 1];
-                acceptedName[0] = '\0';
                 strncpy(acceptedName, playerName, MAX_NAME_LENGTH);
-        
-                // Ensure null termination
-                acceptedName[MAX_NAME_LENGTH] = '\0';
-                
-                // Iterate through the copied string
+                acceptedName[MAX_NAME_LENGTH] = '\0'; // Ensure null termination
+
                 for (int i = 0; acceptedName[i] != '\0'; i++) {
                     if (!isgraph(acceptedName[i]) && !isblank(acceptedName[i])) {
                         acceptedName[i] = '_';
@@ -180,182 +177,161 @@ bool handleMessage(void* arg, const addr_t from, const char* buf)
                     printf("Player not initialized properly\n");
                     fflush(stdout);
                 }
+
+                // Send acknowledgment and initial game data
                 char response[5];
-                response[0] = '\0';
                 sprintf(response, "OK %c", player->playerLetter);
                 message_send(from, response);
+
                 char result[50];
-                result[0] = '\0';
                 sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
-                message_send(from, result);  // Send initial grid size
+                message_send(from, result);
+
                 char gold[12];
-                gold[0] = '\0';
                 sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
                 message_send(from, gold);
+
                 char first_part[] = "DISPLAY\n";
                 char* map = map_decode(player->playerMap, game);
-                
                 char message[message_MaxBytes];
-                message[0] = '\0';
-                snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                
+                snprintf(message, sizeof(message), "%s%s", first_part, map);
                 message_send(from, message);
                 mem_free(map);
 
-                
-            } 
-            else {
+                // Update all players and the spectator
+                updateAllPlayers(game);
+            } else {
                 message_send(from, "QUIT Sorry - you must provide a player's name.");
             }
-        }
-        else {
+        } else {
             message_send(from, "QUIT Game is full: no more players can join.");
         }
-       
     } 
     else if (strcmp(buf, "SPECTATE") == 0) {
+        // Handle spectator joining or replacing an existing spectator
         if (game->hasSpectator) {
             message_send(game->spectatorAddress, "QUIT You have been replaced by a new spectator");
-            // the server needs to forget this spectator
-        }
-        else {
+        } else {
             game->hasSpectator = true;
         }
         game->spectatorAddress = from;
 
         printf("Spectator joining.\n");
+
+        // Send initial grid dimensions
         char result[50];
-        result[0] = '\0';
-        sprintf(result, "GRID %d %d", game->mapHeight, game->mapWidth);
-        message_send(from, result);  // Send initial grid size
+        snprintf(result, sizeof(result), "GRID %d %d", game->mapHeight, game->mapWidth);
+        message_send(from, result);
+
+        // Send initial gold information
         char gold[12];
-        gold[0] = '\0';
-        sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
+        snprintf(gold, sizeof(gold), "GOLD %d %d %d", 0, 0, game->goldRemaining);
         message_send(from, gold);
-        // Send current game state
+
+        // Send the current game state
         char first_part[] = "DISPLAY\n";
         char* map = map_decode(game->map, game);
         char message[message_MaxBytes];
-        message[0] = '\0';
-        snprintf(message, message_MaxBytes,"%s%s", first_part, map);
+        snprintf(message, sizeof(message), "%s%s", first_part, map);
         message_send(from, message);
         mem_free(map);
     } 
-
     else if (strncmp(buf, "KEY ", 4) == 0) {
+        // Handle player movement or quitting
         char key = buf[4];
         printf("Key received from player: %c\n", key);
-        /* Process the key command (e.g., player movement)*/
 
-        // Array of valid controls
-        char valid_chars[] = "QhljkyubnHLJKYUBN";
-
-        //Checking if it's a valid key;
-        if (strchr(valid_chars, key)) {
-          printf("The keystroke is valid\n");
-          //fflush(stderr);
-          if (key == 'Q' || key == 'q') {
-              if (message_eqAddr(from, game->spectatorAddress)) {
-                  message_send(from, "QUIT Thanks for watching");
-              }
-              else {
+        if (key == 'Q' || key == 'q') {
+            // Handle player quitting
+            if (message_eqAddr(from, game->spectatorAddress)) {
+                message_send(from, "QUIT Thanks for watching");
+                game->hasSpectator = false;
+            } else {
                 message_send(from, "QUIT Thanks for playing");
                 player_t* quittingPlayer = hashtable_find(game->players, message_stringAddr(from));
-                int indexToLeave = quittingPlayer->yPosition * game->mapWidth + quittingPlayer->xPosition;
-
-                // Restore the original tile from mapWithNoPlayers
-                char originalTile = game->mapWithNoPlayers[indexToLeave];
-                game->map[indexToLeave] = originalTile;
- 
-              }
+                if (quittingPlayer != NULL) {
+                    int indexToLeave = quittingPlayer->yPosition * game->mapWidth + quittingPlayer->xPosition;
+                    char originalTile = game->mapWithNoPlayers[indexToLeave];
+                    game->map[indexToLeave] = originalTile;
+                }
             }
-            
-            else {
-              bool valid = game_playerMove(from, game, key);
-           
-              if (valid) {
-                  
-                  for (int i = 0; i < MaxPlayers; i++) {
-                      
-                      if ((message_isAddr(game->activePlayers[i])) ) {
 
-                          player_t* player = hashtable_find(game->players, message_stringAddr((game->activePlayers[i])));
-                      
-                          char first_part[] = "DISPLAY\n";
-                          char* map = map_decode(player->playerMap, game);
-                          // printf("map declared\n");
-                          //fflush(stdout);
-                          char message[message_MaxBytes];
-                          message[0] = '\0';
-                          // printf("Message Declared");
-                          // fflush(stdout);
-                          snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                          // printf("Message Assigned");
-                          // fflush(stdout);
-                        
-                          message_send((game->activePlayers[i]), message);
-                          char gold[12];
-                          gold[0] = '\0';
-                          sprintf(gold, "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
-                          message_send(game->activePlayers[i], gold);
-                          
-                          if (game->goldRemaining == 0) {
-                              // send message to all players and the spectator printing out the result
-                              char end_part[] = "QUIT GAME OVER:\n";
-                              char end_message[message_MaxBytes];
-                              end_message[0] = '\0';
-                              char* finalScores = game_getFinalScores(game);
-                              snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
-                              message_send(game->activePlayers[i], end_message);
-                              mem_free(finalScores);
-                          }
-                          mem_free(map);
+            // Update all players and the spectator
+            updateAllPlayers(game);
+        } else {
+            // Process valid movement keys
+            char valid_chars[] = "QhljkyubnHLJKYUBN";
+            if (strchr(valid_chars, key)) {
+                if (game_playerMove(from, game, key)) {
+                    // Movement succeeded, update all players and the spectator
+                    updateAllPlayers(game);
 
-                      } 
-                  }
-                  char first_part[] = "DISPLAY\n";
-                  char* map = map_decode(game->map, game);
-                  char message[message_MaxBytes];
-                  message[0] = '\0';
-                  snprintf(message, message_MaxBytes,"%s%s", first_part, map);
-                  if(game->hasSpectator){
-                    message_send(game->spectatorAddress, message);
-                  }
-                  char gold[12];
-                  gold[0] = '\0';
-                  sprintf(gold, "GOLD %d %d %d", 0, 0, game->goldRemaining);
-                  if(game->hasSpectator){
-                    message_send(game->spectatorAddress, gold);
-                  }
-                  mem_free(map);
+                    // Check if game is over
+                    if (game->goldRemaining == 0) {
+                        char end_part[] = "QUIT GAME OVER:\n";
+                        char* finalScores = game_getFinalScores(game);
 
-                  if (game->goldRemaining == 0) {
-                      // send message to the spectator printing out the result
-                      char end_part[] = "QUIT GAME OVER:\n";
-                      char end_message[message_MaxBytes];
-                      char* finalScores = game_getFinalScores(game);
-                      snprintf(end_message, message_MaxBytes,"%s%s", end_part, finalScores);
-                      if(game->hasSpectator){
-                        message_send(game->spectatorAddress, end_message);
-                      }
-                      mem_free(finalScores);
-                      return true;
-                      
-                  }
+                        // Notify all players
+                        for (int i = 0; i < MaxPlayers; i++) {
+                            if (message_isAddr(game->activePlayers[i])) {
+                                char end_message[message_MaxBytes];
+                                snprintf(end_message, sizeof(end_message), "%s%s", end_part, finalScores);
+                                message_send(game->activePlayers[i], end_message);
+                            }
+                        }
 
-              }
+                        // Notify spectator if present
+                        if (game->hasSpectator) {
+                            char end_message[message_MaxBytes];
+                            snprintf(end_message, sizeof(end_message), "%s%s", end_part, finalScores);
+                            message_send(game->spectatorAddress, end_message);
+                        }
+
+                        mem_free(finalScores);
+                        return true; // Exit the game loop
+                    }
+                }
+            } else {
+                message_send(from, "ERROR Not a valid input");
             }
-            
-
-        } 
-        else {
-            message_send(from, "ERROR : Not a valid input");
         }
-    } 
-    else {
+    } else {
+        // Handle unrecognized command
         message_send(from, "ERROR Unrecognized command");
     }
 
-    return false;  // Return false to keep the loop running
+    return false; // Keep the loop running
 }
+
+
+void updateAllPlayers(game_t* game) {
+    for (int i = 0; i < MaxPlayers; i++) {
+        if (message_isAddr(game->activePlayers[i])) {
+            player_t* player = hashtable_find(game->players, message_stringAddr(game->activePlayers[i]));
+            if (player != NULL) {
+                // Update the player's visible map
+                char* visibleMap = mem_malloc(strlen(game->map) + 1);
+                memset(visibleMap, 0, strlen(game->map) + 1);
+                map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
+                map_merge(player->playerMap, visibleMap, game->mapWidth, game->mapHeight);
+                mem_free(visibleMap);
+
+                // Send the updated map to the player
+                char first_part[] = "DISPLAY\n";
+                char* map = map_decode(player->playerMap, game);
+                char message[message_MaxBytes];
+                memset(message, 0, sizeof(message));
+                snprintf(message, message_MaxBytes, "%s%s", first_part, map);
+                message_send(game->activePlayers[i], message);
+                mem_free(map);
+
+                // Send updated gold info
+                char goldInfo[50];
+                snprintf(goldInfo, sizeof(goldInfo), "GOLD %d %d %d", player->goldJustCaptured, player->goldCaptured, game->goldRemaining);
+                message_send(game->activePlayers[i], goldInfo);
+            }
+        }
+    }
+}
+
 
