@@ -21,7 +21,6 @@
 #include "../libcs50/hashtable.h"
 #include "../support/message.h"
 
-
 #define MaxPlayers 26
 
 /**************** global types ****************/
@@ -50,7 +49,6 @@ typedef struct game {
     bool hasSpectator;
     addr_t spectatorAddress;
     int seed;
-    char playerLetters[26];
     char nextAvailableLetter;
     int goldRemaining;
     int minGoldPiles;
@@ -60,56 +58,81 @@ typedef struct game {
 
 /**************** functions ****************/
 
-/**************** game_initialize ****************/
-/* Initializes a new game
+/**************** game_init ****************/
+/* Initializes a new game with the given parameters.
  *
  * Caller provides:
- *   - Encoded map file string
- *   - optional seed
- * Caller is responsible for:
- *   later calling game_cleanup
+ *   - mapFile: a file pointer to the map file to use for the game.
+ *   - seed: an integer seed for random number generation.
+ *   - gold: the total amount of gold in the game.
+ *   - minGoldPiles: the minimum number of gold piles.
+ *   - maxGoldPiles: the maximum number of gold piles.
+ *   - plain: a boolean indicating whether the game is in plain mode.
+ * We initialize:
+ *   - The game structure with map data, players, gold piles, and other metadata.
+ * Returns:
+ *   - A pointer to the initialized game object or NULL on failure.
  */
 game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain);
 
-/**************** game_updateState ****************/
-/* Updates the state of the game based on a player's action.
+/**************** game_playerMove ****************/
+/* Handles movement for a player and updates their position and visible map.
  *
  * Caller provides:
- *   - player: a pointer to the player struct representing the player taking action
- *   - action: a character representing the action to be processed (e.g., movement or quit)
+ *   - playerAddress: the address of the player attempting to move.
+ *   - game: a pointer to the current game state.
+ *   - moveType: a character representing the direction of the move (e.g., 'h' for left).
  * We update:
- *   - The game state, including player positions, collected gold, and map updates.
- * Caller is responsible for:
- *   - Calling game_cleanup when the game is over to free allocated resources.
- */
-void game_updateState(player_t* player, char action);
-
-/**************** playerMove ****************/
-/* Updates the player's visible map based on their movement.
- *
- * Caller provides:
- *   - currentVisibleMap: a pointer to the player's current visible portion of the map
- *   - moveType: a character representing the type of move (e.g., 'h' for left, 'j' for down)
- *   - xPos: the player's current x-coordinate on the map
- *   - yPos: the player's current y-coordinate on the map
+ *   - The player's position and visible map.
+ * Returns:
+ *   - true if the move is valid and successful, false otherwise.
  */
 bool game_playerMove(addr_t playerAddress, game_t* game, char moveType);
 
-
 /**************** game_print ****************/
-/* Prints the a object 
+/* Prints the details of the given game object for debugging purposes.
  *
  * Caller provides:
- *   - game object to print
+ *   - game: a pointer to the game object to print.
+ * We print:
+ *   - Metadata about the game, including map dimensions, gold remaining, and the encoded map.
  */
 void game_print(const game_t* game);
 
+/**************** game_delete ****************/
+/* Frees all resources associated with the given game object.
+ *
+ * Caller provides:
+ *   - game: a pointer to the game object to delete.
+ * We free:
+ *   - Memory allocated for the map, players, gold piles, and other game-related resources.
+ */
 void game_delete(game_t* game);
 
+/**************** game_playerInit ****************/
+/* Initializes a new player and adds them to the game.
+ *
+ * Caller provides:
+ *   - game: a pointer to the current game state.
+ *   - address: the player's address for communication.
+ *   - playerName: the name of the player as a string.
+ * We initialize:
+ *   - Player data, including name, position, map visibility, and assigned letter.
+ * Returns:
+ *   - A pointer to the newly created player or NULL if initialization fails.
+ */
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName);
 
+/**************** game_getFinalScores ****************/
+/* Generates a string containing the final scores of all players in the game.
+ *
+ * Caller provides:
+ *   - game: a pointer to the current game state.
+ * We generate:
+ *   - A string listing each player's letter, total gold captured, and name.
+ * Returns:
+ *   - A dynamically allocated string with the final scores. Caller is responsible for freeing it.
+ */
 char* game_getFinalScores(game_t* game);
-
-
 
 #endif // __GAME_H

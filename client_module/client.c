@@ -1,5 +1,5 @@
 /*  
- * client.c - a client using the messaging module (Team 10)
+ * client.c - a client using the messaging module
  *
  * client.c handles the client side implementation of the nuggets game. 
  * It initializes the client as either player or spectator, if they are a player
@@ -14,8 +14,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <curses.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
 #include "ctype.h"
 #include "message.h"
 #include "log.h"
@@ -39,15 +37,14 @@ bool handleClientInput(void* arg);
 void updateDisplay(char* gameState);
 void displayStatusLine(const char* message);
 
-
 /* helper functions for handleServerMessage */
-void handleGridMessage(const char* message);
-void checkDisplayDimensions(int num_rows, int num_cols);
+void handleGridMessage(client_t* client, const char* message);
 void handleGoldMessage(client_t* client, const char* message); 
 void handleOkMessage(client_t* client, const char* message); 
-static void handleQuitMessage(const char* message);
+static void handleQuitMessage(client_t* client, const char* message);
 static void handleErrorMessage(client_t* client, const char* message);
-static void handleDisplayMessage(const char* message);
+static void handleDisplayMessage(client_t* client, const char* message);
+void displayErrorMessage(client_t* client);
 /***************************************************/
 
 
@@ -108,7 +105,6 @@ int main(int argc, char* argv[])
     mem_free(client->statusLine);
     client->statusLine = NULL;
   }  
-  fclose(log);
   mem_free(client); 
   endwin();
   return ok? 0 : 1;
@@ -176,7 +172,7 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
   log_s("Message received: %s", message);
 
   if (strncmp(message, "GRID ", strlen("GRID ")) == 0) {
-    handleGridMessage(message);
+    handleGridMessage(client, message);
   }
   else if (strncmp(message, "GOLD ", strlen("GOLD ")) == 0) {
     handleGoldMessage(client, message);
@@ -185,16 +181,18 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
     handleOkMessage(client, message);
   }
   else if (strncmp(message, "QUIT ", strlen("QUIT ")) == 0) {
-    handleQuitMessage(message);
+    handleQuitMessage(client, message);
     return true; // stop looping
   }
   else if (strncmp(message, "ERROR", strlen("ERROR")) == 0) {
     handleErrorMessage(client, message);
   }
   else if (strncmp(message, "DISPLAY\n", strlen("DISPLAY\n")) == 0) {
-    handleDisplayMessage(message);
+    handleDisplayMessage(client, message);
   }
   else { // message not formatted correctly, log error
+    displayErrorMessage(client);
+    refresh();
     mvprintw(0, 0, "Error: message from server could not be read.\n");
   }
   refresh();
@@ -204,40 +202,36 @@ static bool handleServerMessage(void* arg, const addr_t from, const char* messag
 
 /******************* handleGridMessage *****************/
 /* see client.h for description */
-void handleGridMessage(const char* message)
+void handleGridMessage(client_t* client, const char* message)
 {
   int rows; // variable to hold integer from server message
   int cols; // variable to hold integer from server message
 
-  // update game state to have most curr rows and cols 
+  int width, height; // variables to hold screen dimensions
+
+  // read the message to get the map dimensions
   if (sscanf(message, "GRID %d %d", &rows, &cols) == 2) {
-    // check to make sure the dimensions of the display are valid
-    checkDisplayDimensions(rows, cols);
+    getmaxyx(stdscr, height, width);
+
+    while (width < cols || height < rows) { // check to make sure screen dimensions are large enough
+      mvprintw(0, 0, "Your window must be at least %d high", rows);
+      mvprintw(1, 0, "Your window must be at least %d wide", cols);
+      mvprintw(2, 0, "Resize your window, and press Enter to continue");
+      refresh();
+
+      char ch = getch(); // if user presses enter, loop again to check
+      if (ch == '\n') {
+        getmaxyx(stdscr, height, width);
+      }
+    }
+
+    clear();
+    refresh();
   }
   else {
-    fprintf(stderr, "Error: GRID message from server could not be read\n");
-    return;
-  }
-}
-
-/******************* checkDisplayDimensions *****************/
-/* see client.h for description */
-void checkDisplayDimensions(int num_rows, int num_cols) 
-{
-  int max_rows; // the number of rows the display could show
-  int max_cols; // the number of columns the display could show
-
-  // get curr display size
-  getmaxyx(stdscr, max_rows, max_cols); 
-
-  if (max_rows < (num_rows + 1) || max_cols < (num_cols + 1)) { // if current display is not large enough 
-    mvprintw(0, 0, "Error: Screen size of display needs to be at least %d rows and %d columns", num_rows + 1, num_cols + 1);
+    displayErrorMessage(client);
     refresh();
-    getmaxyx(stdscr, num_rows, num_cols); // get current display size again 
-  }
-
-  clear();
-  return;
+  } 
 }
 
 /******************* handleGoldMessage *****************/
@@ -279,7 +273,8 @@ void handleGoldMessage(client_t* client, const char* message)
     mem_free(goldStatus);
   }
   else {
-    fprintf(stderr, "Error: Gold message from server could not be read.\n");
+    displayErrorMessage(client);
+    refresh();
   }
 }
 
@@ -301,11 +296,15 @@ void handleOkMessage(client_t* client, const char* message)
       return;
     }
   }
+  else {
+    displayErrorMessage(client);
+    refresh();
+  }
 }
 
 /******************* handleQuitMessage *****************/
 /* see client.h for description */
-static void handleQuitMessage(const char* message)
+static void handleQuitMessage(client_t* client, const char* message)
 {
   // end ncurses
   endwin();
@@ -317,6 +316,10 @@ static void handleQuitMessage(const char* message)
     // skip "QUIT " by adding 5
     quitExplanation += 5;
     printf("%s\n", quitExplanation);
+  }
+  else {
+    displayErrorMessage(client);
+    refresh();
   }
 }
 
@@ -331,6 +334,10 @@ static void handleErrorMessage(client_t* client, const char* message)
     // skip "ERROR " by adding 6
     errorExplanation += 6;
   }
+  else {
+    displayErrorMessage(client);
+    refresh();
+  }
 
   char* totalStatus = mem_malloc(message_MaxBytes);
   // add the error explanation to the current statusline 
@@ -343,12 +350,16 @@ static void handleErrorMessage(client_t* client, const char* message)
 
 /******************* handleDisplayMessage *****************/
 /* see client.h for description */
-static void handleDisplayMessage(const char* message)
+static void handleDisplayMessage(client_t* client, const char* message)
 {
   // skip the "DISPLAY\n" portion of the message to retrieve the display itself
   char* displayMessage = strstr(message, "DISPLAY\n");
   if (displayMessage != NULL) {
     displayMessage += 9; // skip nine chars for "DISPLAY\n"
+  }
+  else {
+    displayErrorMessage(client);
+    refresh();
   }
 
   // copy the game state
@@ -443,4 +454,16 @@ void updateDisplay(char* gameState)
   // print the display 
   mvprintw(1, 0, "%s", gameState);
   refresh();
+}
+
+/****************** displayErrorMessage *********************/
+/* see client.h for description */
+void displayErrorMessage(client_t* client) 
+{
+    const char* errorMessage = "Malformed server message received.";
+    if (client->statusLine != NULL) {
+        snprintf(client->statusLine, message_MaxBytes, "%s", errorMessage);
+    }
+    displayStatusLine(client->statusLine);
+    refresh();
 }

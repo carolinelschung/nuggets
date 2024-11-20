@@ -1,4 +1,4 @@
-# Makefile for 'client' module (Team 10)
+# Makefile for 'client' program
 # Caroline Chung, November 12, 2024
 
 # Object files
@@ -15,7 +15,6 @@ MAKE = make
 
 # For memory-leak tests
 VALGRIND = valgrind --leak-check=full --show-leak-kinds=all
-
 
 # Target for the main client program
 client: $(OBJS)

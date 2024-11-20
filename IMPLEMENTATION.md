@@ -12,7 +12,7 @@ We avoid repeating information that is provided in the requirements spec.
 #### Server Side:
 
 - Nafis 
-    - `Server Module` and Messaging
+    - `Message Module`
         - Handles messaging between server side and client side
 - Joe 
     - `Game Module`
@@ -45,6 +45,7 @@ typedef struct client {
 ```
 
 ### Definition of function protoytypes and Pseudocode
+------------
 
 ##### `void parseArgs(client_t* client, int argc, char* argv[])`
 Validates command-line arguments for client and configures initial state based on the type (player or spectator).
@@ -323,7 +324,7 @@ Null-terminate and return the formatted result.
 ---
 ## Extra Credit
 
-#### Server Argument Options, including `--plain`
+#### Server Argument Options
 We have added the following optional arguments for the server:
 - `--gold 500`: specifies the total gold in the game.
 - `--minpiles 15`: sets the minimum number of gold piles.
@@ -333,9 +334,6 @@ We have added the following optional arguments for the server:
 
 #### Gold Stealing when Players Swap Spots
 Players can steal gold by stepping onto other players. If a player enters the tile of another player, they take all gold the other player has collected. 
-
-#### Drop Gold on Quit
-When a player quits before the game ends, their collected gold is left at their last location on the map. This gold pile becomes available for other players to collect, encouraging strategy around player interactions.
 
 ---
 
@@ -362,7 +360,7 @@ When a player quits before the game ends, their collected gold is left at their 
     - Server Message Handling: Check that the client processes different server messages correctly (e.g., grid setup, player status).
     - User Input Handling: Test user commands (e.g., movement and quit) to confirm expected behavior.
 
-- 'Server Module'
+- `Server Module`
     - Argument Parsing: Validate command-line inputs, ensuring correct game settings and map file handling.
     - Client Messages: Test different client messages to verify server responses and game state updates.
     - Input Commands: Test server input commands like "status" and "quit" to ensure expected server behavior.
@@ -391,3 +389,5 @@ When a player quits before the game ends, their collected gold is left at their 
 ---
 
 ## Limitations
+- When a client joins, the map is sometimes invisible until the player makes a move.
+- Also on client, sometimes the final message prints twice.

@@ -28,16 +28,123 @@
 #define MAX_NAME_LENGTH 50
 
 /**************** local functions ****************/
+
+/**************** encodeMap ****************/
+/* Reads the map file and encodes it into a single string representation.
+ *
+ * Caller provides:
+ *   - mapFile: a file pointer to the map file.
+ *   - game: a pointer to the current game object to update map dimensions.
+ * We initialize:
+ *   - The game's mapWidth, mapHeight, and encodedMapLength.
+ * Returns:
+ *   - A dynamically allocated string representation of the map. Caller is responsible for freeing it.
+ *   - NULL if the map file is invalid or memory allocation fails.
+ */
 char* encodeMap(FILE* mapFile, game_t* game);
+
+/**************** placeGold ****************/
+/* Places gold randomly on the map and populates the `goldPileAmounts` hashtable.
+ *
+ * Caller provides:
+ *   - game: a pointer to the current game object.
+ * We update:
+ *   - The map to place gold piles.
+ *   - The `goldPileAmounts` hashtable to track gold values at specific positions.
+ * Returns:
+ *   - Nothing. Errors are logged if memory allocation fails or if the map is not initialized.
+ */
 void placeGold(game_t* game);
+
+/**************** getIndex ****************/
+/* Calculates the linear index for a 2D coordinate in a 1D array.
+ *
+ * Caller provides:
+ *   - x: the x-coordinate.
+ *   - y: the y-coordinate.
+ *   - mapWidth: the width of the map.
+ * Returns:
+ *   - The calculated linear index in a 1D array.
+ */
 int getIndex(int x, int y, int mapWidth);
-bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY); 
+
+/**************** validateAndMove ****************/
+/* Validates a player's proposed movement and updates the game state accordingly.
+ *
+ * Caller provides:
+ *   - game: a pointer to the current game object.
+ *   - player: a pointer to the player attempting the move.
+ *   - proposedX: the proposed x-coordinate for the player.
+ *   - proposedY: the proposed y-coordinate for the player.
+ * We update:
+ *   - The player's position and gold if they interact with a gold pile.
+ *   - The game's map and `goldPileAmounts` if gold is captured.
+ * Returns:
+ *   - true if the move is valid and successful.
+ *   - false if the move is invalid or fails.
+ */
+bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY);
+
+/**************** printMap ****************/
+/* Prints the current map for debugging purposes.
+ *
+ * Caller provides:
+ *   - map: a pointer to the encoded map string.
+ *   - game: a pointer to the current game object containing map dimensions.
+ * We print:
+ *   - The map to the console, row by row.
+ */
 void printMap(char* map, game_t* game);
-static void print_item(FILE* fp, const char* key, void* item);
+
+/**************** printItem ****************/
+/* Prints a key-value pair from the `goldPileAmounts` hashtable for debugging purposes.
+ *
+ * Caller provides:
+ *   - fp: the file pointer to print to (e.g., stdout).
+ *   - key: the key in the hashtable, representing the map index as a string.
+ *   - item: the value in the hashtable, representing the gold amount at the index.
+ * We print:
+ *   - The key and gold amount, or "(null)" if the item is NULL.
+ */
+static void printItem(FILE* fp, const char* key, void* item);
+
+/**************** getPlayerByLetter ****************/
+/* Finds a player in the hashtable by their assigned letter.
+ *
+ * Caller provides:
+ *   - letter: the letter representing the player to find.
+ *   - game: a pointer to the current game object.
+ * Returns:
+ *   - A pointer to the player object if found.
+ *   - NULL if no player with the given letter exists.
+ */
 player_t* getPlayerByLetter(char letter, game_t* game);
+
+/**************** getPlayerByLetterHelper ****************/
+/* Helper function for `getPlayerByLetter` to iterate through the hashtable.
+ *
+ * Caller provides:
+ *   - arg: a pointer to an array containing the target letter and a pointer to store the found player.
+ *   - key: the key in the hashtable (unused in this function).
+ *   - item: the player object to check against the target letter.
+ * We update:
+ *   - The pointer in `arg` to point to the found player, if their letter matches.
+ */
 void getPlayerByLetterHelper(void* arg, const char* key, void* item);
+
+/**************** player_delete ****************/
+/* Frees memory allocated for a player object, including their name and map.
+ *
+ * Caller provides:
+ *   - playerRaw: a pointer to the player object to free.
+ * We free:
+ *   - The player's map, name, and the player object itself.
+ */
 static void player_delete(void* playerRaw);
 
+
+/**************** game_init ****************/
+/* See game.h for details. */
 game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)
 {
     game_t* game = mem_malloc(sizeof(game_t));
@@ -48,7 +155,14 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
     } else {
         srand(getpid());
     }
- 
+
+    memset(game, 0, sizeof(game_t)); // Ensure all fields are zeroed
+
+    // Initialize activePlayers array
+    for (int i = 0; i < MaxPlayers; i++) {
+        game->activePlayers[i] = message_noAddr(); // Initialize with no address
+    }
+
     // Initialize variables
     game->seed = seed;
     game->goldRemaining = gold;
@@ -63,18 +177,6 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
     game->nextAvailableLetter = 'A';
 
     game->hasSpectator = false;
-    
-
-    // initialize activePlayers array
-    for (int i = 0; i < MaxPlayers; i++) {
-        game->activePlayers[i] = message_noAddr(); // Zero-initialize each `addr_t` element
-    }
-
-    // Initialize player letters
-    for (int i = 0; i < 26; i++) {
-        game->playerLetters[i] = 'A' + i;
-    }
-
 
     game->mapWithNoPlayers = mem_malloc((1+strlen(game->map))*sizeof(char));
     strcpy(game->mapWithNoPlayers, game->map);
@@ -90,6 +192,8 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
 }
 
 
+/**************** game_playerMove ****************/
+/* See game.h for details. */
 bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)
 {
     player_t* player = hashtable_find(game->players, message_stringAddr(playerAddress));
@@ -178,7 +282,7 @@ bool game_playerMove(addr_t playerAddress, game_t* game, char moveType)
 
 
 /**************** game_print ****************/
-/* Prints metadata of a game object */
+/* See game.h for details. */
 void game_print(const game_t* game)
 {
     if (game == NULL) {
@@ -200,29 +304,23 @@ void game_print(const game_t* game)
     }
 }
 
-
+/**************** game_delete ****************/
+/* See game.h for details. */
 void game_delete(game_t* game) {
     if (game == NULL) return;
 
     mem_free(game->map);
-
     mem_free(game->mapWithNoPlayers);
- 
-    hashtable_delete(game->goldPileAmounts, mem_free); // Ensures each entry is freed
-  
-    hashtable_delete(game->players, player_delete); // Pass mem_free if players have allocated memory
+
+    // Properly handle memory for gold pile amounts
+    hashtable_delete(game->goldPileAmounts, mem_free); // Only frees valid entries
+    hashtable_delete(game->players, player_delete);    // Pass player_delete to free players
 
     mem_free(game);
 }
 
-
-static void player_delete(void* playerRaw){
-    player_t* player = (player_t*) playerRaw;
-    mem_free(player->playerMap);
-    mem_free(player->playerName);
-    mem_free(player);
-}
-
+/**************** game_playerInit ****************/
+/* See game.h for details. */
 player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
 {
     player_t* player = mem_malloc(sizeof(player_t));
@@ -301,10 +399,33 @@ player_t* game_playerInit(game_t* game, addr_t address, char* playerName)
     return NULL;
 }
 
+
+/**************** game_getFinalScores ****************/
+/* See game.h for details. */
+char* game_getFinalScores(game_t* game) {
+    char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
+    if (quitMessage == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
+        return NULL;
+    }
+    quitMessage[0] = '\0';
+
+    for (char letter = 'A'; letter <= 'Z'; letter++) {
+        player_t* player = getPlayerByLetter(letter, game);
+        if (player != NULL) {
+            char playerInfo[100];
+            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
+                     player->playerLetter, player->goldCaptured, player->playerName);
+            strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
+        }
+    }
+    return quitMessage;
+}
+
 /************* HELPER FUNCTIONS *****************/
 
 /**************** encodeMap ****************/
-/* Reads the map file line by line using file_readLine and sets the map dimensions */
+
 char* encodeMap(FILE* mapFile, game_t* game) 
 {
     if (mapFile == NULL) {
@@ -375,9 +496,7 @@ char* encodeMap(FILE* mapFile, game_t* game)
 
 
 /**************** placeGold ****************/
-/* Places gold randomly on map for a given game
- * Init and populate goldPileAmount Hashtable
- */
+
 void placeGold(game_t* game) {
     if (game == NULL || game->map == NULL || game->encodedMapLength == 0) {
         fprintf(stderr, "Error: Game or map is not initialized, or map length is zero.\n");
@@ -403,7 +522,14 @@ void placeGold(game_t* game) {
     }
 
     for (int i = 0; i < numPiles; i++) {
-        int* pileSizePtr = malloc(sizeof(int));
+    
+        int* pileSizePtr = mem_malloc(sizeof(int));
+        if (pileSizePtr == NULL) {
+            fprintf(stderr, "Error: Memory allocation failed for gold pile.\n");
+            return;
+        }
+
+
         *pileSizePtr = pileValues[i];
         bool spotFound = false;
         while (!spotFound) {
@@ -419,38 +545,11 @@ void placeGold(game_t* game) {
         }
     }
 
-    hashtable_print(game->goldPileAmounts, stdout, print_item);
+    hashtable_print(game->goldPileAmounts, stdout, printItem);
 }
 
 
-char* game_getFinalScores(game_t* game)
-{   
-    // Allocate memory for the final scores message
-    char* quitMessage = mem_malloc(message_MaxBytes * sizeof(char));
-    quitMessage[0] = '\0';
-    if (quitMessage == NULL) {
-        fprintf(stderr, "Error: Memory allocation failed for quitMessage.\n");
-        return NULL;
-    }
-
-    // Iterate over letters 'A' to 'Z' and build the message
-    for (char letter = 'A'; letter <= 'Z'; letter++) {
-        // Find player with the current letter
-        player_t* player = getPlayerByLetter(letter, game);
-        if (player != NULL) {
-            // Format the player's information and append to quitMessage
-            char playerInfo[100];
-            playerInfo[0] = '\0';
-            snprintf(playerInfo, sizeof(playerInfo), "%-2c %10d %-51s\n", 
-                     player->playerLetter, player->goldCaptured, player->playerName);
-            strncat(quitMessage, playerInfo, message_MaxBytes - strlen(quitMessage) - 1);
-        }
-    }
-
-    return quitMessage;  // Return the accumulated message
-}
-
-// Function to find a player by letter in the hashtable
+/**************** getPlayerByLetter ****************/
 player_t* getPlayerByLetter(char letter, game_t* game)
 {   
     player_t* foundPlayer = NULL;
@@ -467,7 +566,7 @@ player_t* getPlayerByLetter(char letter, game_t* game)
     return foundPlayer;
 }
 
-// Helper function for hashtable iteration to find a player by letter
+/**************** getPlayerByLetterHelper ****************/
 void getPlayerByLetterHelper(void* arg, const char* key, void* item)
 {   
     // Retrieve the letter and pointer to foundPlayer from the arg array
@@ -482,7 +581,27 @@ void getPlayerByLetterHelper(void* arg, const char* key, void* item)
     }
 }
 
+/**************** player_delete ****************/
+static void player_delete(void* playerRaw) {
+    if (playerRaw == NULL) return;
 
+    player_t* player = (player_t*)playerRaw;
+
+    // Free the player's map
+    if (player->playerMap != NULL) {
+        mem_free(player->playerMap);
+    }
+
+    // Free the player's name
+    if (player->playerName != NULL) {
+        mem_free(player->playerName);
+    }
+
+    // Finally, free the player object itself
+    mem_free(player);
+}
+
+/**************** validateAndMove ****************/
 bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposedY) 
 {
     int currentIndex = player->yPosition * game->mapWidth + player->xPosition;
@@ -558,23 +677,30 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
     player->xPosition = proposedX;
     player->yPosition = proposedY;
     
-    // It fails after printing this line
+    
     printf("x %d, y %d\n", proposedX, proposedY);
     
-    char* visibleMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
-    memset(visibleMap, 0, strlen(game->map) + 1);
-    printf("The length of the visible map is %d\n",(int)strlen(visibleMap));
-    fflush(stdout);
-    map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
-    map_merge(player->playerMap, visibleMap, game->mapWidth, game->mapHeight);
+    for (int i = 0; i < MaxPlayers; i++) {
+                      
+        if ((message_isAddr(game->activePlayers[i])) ) {
+            player_t* player = hashtable_find(game->players, message_stringAddr((game->activePlayers[i])));
+            char* visibleMap = mem_malloc(sizeof(char) * (strlen(game->map) + 1));
+            memset(visibleMap, 0, strlen(game->map) + 1);
 
-    mem_free(visibleMap);
+            // printf("The length of the visible map is %d\n",(int)strlen(visibleMap));
+            // fflush(stdout);
+            map_get_visible(player->xPosition, player->yPosition, game->map, visibleMap, game->mapWidth, game->mapHeight);
+            map_merge(player->playerMap, visibleMap, game->mapWidth, game->mapHeight);
+
+            mem_free(visibleMap);
+
+        } 
+    }
 
     return true;
 }
 
-/**************** game_printMap ****************/
-/* prints map of a game for testing */
+/**************** printMap ****************/
 void printMap(char* map, game_t* game)
 {
     for (int i = 0; i < game->encodedMapLength; i++) {
@@ -586,8 +712,8 @@ void printMap(char* map, game_t* game)
     }    
 }
 
-
-static void print_item(FILE* fp, const char* key, void* item) {
+/**************** printItem ****************/
+static void printItem(FILE* fp, const char* key, void* item) {
     int* amt = item;
     if (amt == NULL) {
         printf("(null)");
