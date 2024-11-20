@@ -39,17 +39,11 @@ Players move around the map using specific keys and can interact with other play
 To start the server, run:
 
 ```bash
-./server <mapfile> [seed] [--gold <gold-amount>] [--minpiles <min-piles>] [--maxpiles <max-piles>] [--plain]
+./server <mapfile> [seed]
 ```
 
 ### Positional Arguments
 - `<mapfile>`: The path to the map file defining the game map.
 - `[seed]`: A positive integer seed for random number generation.
-
-### Optional Flags
-- `--gold <gold-amount>`: Total amount of gold in the game (default: 250).
-- `--minpiles <min-piles>`: Minimum number of gold piles (default: 10).
-- `--maxpiles <max-piles>`: Maximum number of gold piles (default: 30).
-- `--plain`: Enables plain mode, disabling extra features like gold stealing.
 
 #### Custom Map file: maps/team10_custom_map.txt

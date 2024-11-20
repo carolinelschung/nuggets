@@ -28,13 +28,13 @@ void updateAllPlayers(game_t* game);
 int main(int argc, char* argv[])
 {
 
-  int seed, gold, minPiles, maxPiles;
-  bool plain = false;
+  int seed;
+  
   // Parse args and open map file
-  FILE* mapFile = parseArgs(argc, argv, &gold, &minPiles, &maxPiles, &plain, &seed);
+  FILE* mapFile = parseArgs(argc, argv, &seed);
 
   // initialize the game
-  game_t* game = game_init(mapFile, seed, gold, minPiles, maxPiles, plain);
+  game_t* game = game_init(mapFile, seed);
   if (game == NULL) {
     fprintf(stderr, "Error: Failed to initialize game\n");
     return 1;
@@ -66,42 +66,9 @@ int main(int argc, char* argv[])
 
 
 // Function to parse command-line arguments, validate them, and open the map file
-FILE* parseArgs(int argc, char* argv[], int* gold, int* minPiles, int* maxPiles, bool* plain, int* seed) {
-    *gold = 250;  // Default values
-    *minPiles = 10;
-    *maxPiles = 30;
-    *plain = false;
+FILE* parseArgs(int argc, char* argv[], int* seed) {
+
     *seed = 0;  // Default seed (will use getpid() if not specified)
-
-    int option;
-    struct option options[] = {
-      {"gold", required_argument, 0, 'g'},
-      {"minpiles", required_argument, 0, 'm'},
-      {"maxpiles", required_argument, 0, 'x'},
-      {"plain", no_argument, 0, 'p'},
-      {0, 0, 0}
-    };
-
-    while ((option = getopt_long(argc, argv, "g:m:x:p", options, NULL)) != -1) {
-        switch (option) {
-            case 'g':
-                *gold = atoi(optarg);
-                break;
-            case 'm':
-                *minPiles = atoi(optarg);
-                break;
-            case 'x':
-                *maxPiles = atoi(optarg);
-                break;
-            case 'p':
-                *plain = true;
-                break;
-
-            case '?':
-                fprintf(stderr, "Usage: %s map.txt [seed] [--gold 500] [--minpiles 15] [--maxpiles 40]\n", argv[0]);
-                exit(1);
-        }
-    }
 
     // Validate positional arguments
     if (optind >= argc) {

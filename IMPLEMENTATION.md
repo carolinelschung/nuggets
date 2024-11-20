@@ -153,7 +153,7 @@ typedef struct player {
 
 ### Definition of function prototypes & Pseudocode
 
-##### `game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)`
+##### `game_t* game_init(FILE* mapFile, int seed)`
 Initializes the game, including the map, players, and gold placement.
 ```C
 Seed the random generator based on seed or process ID.
@@ -321,19 +321,6 @@ Loop through each tile in map:
     Add newline after every row (based on mapWidth).
 Null-terminate and return the formatted result.
 ```
----
-## Extra Credit
-
-#### Server Argument Options
-We have added the following optional arguments for the server:
-- `--gold 500`: specifies the total gold in the game.
-- `--minpiles 15`: sets the minimum number of gold piles.
-- `--maxpiles 40`: sets the maximum number of gold piles.
-- `--seed 123`: provides a seed for random generation of gold placement and player spawning
-- `--plain`: allows the server to disable all extra credit capabilites.
-
-#### Gold Stealing when Players Swap Spots
-Players can steal gold by stepping onto other players. If a player enters the tile of another player, they take all gold the other player has collected. 
 
 ---
 

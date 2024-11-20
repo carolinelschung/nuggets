@@ -145,7 +145,7 @@ static void player_delete(void* playerRaw);
 
 /**************** game_init ****************/
 /* See game.h for details. */
-game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain)
+game_t* game_init(FILE* mapFile, int seed)
 {
     game_t* game = mem_malloc(sizeof(game_t));
 
@@ -165,10 +165,7 @@ game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGo
 
     // Initialize variables
     game->seed = seed;
-    game->goldRemaining = gold;
-    game->minGoldPiles = minGoldPiles;
-    game->maxGoldPiles = maxGoldPiles;
-    game->plain = plain;
+    game->goldRemaining = GoldTotal;
 
     // Encoding map
     game->map = encodeMap(mapFile, game);
@@ -503,7 +500,7 @@ void placeGold(game_t* game) {
         return;
     }
 
-    int numPiles = game->minGoldPiles + rand() % (game->maxGoldPiles - game->minGoldPiles + 1);
+    int numPiles = GoldMinNumPiles + rand() % (GoldMaxNumPiles - GoldMinNumPiles + 1);
     int remainingGold = game->goldRemaining - numPiles;
 
     game->goldPileAmounts = hashtable_new(numPiles);
@@ -615,10 +612,6 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         return false;
     }
 
-    if (strchr(valid_chars, proposedTile) && game->plain) {
-        return false;
-    }
-
     game->map[currentIndex] = currentTilePlayerIsOn;
 
     if (game->map[proposedIndex] == '*') {
@@ -642,17 +635,13 @@ bool validateAndMove(game_t* game, player_t* player, int proposedX, int proposed
         }
     }
 
-    if (strchr(valid_chars, proposedTile) && !game->plain) {
+    if (strchr(valid_chars, proposedTile)) {
         int index = proposedTile - 'A';  // Calculate the index in activePlayers based on the letter
         const char* stringAddress = message_stringAddr(game->activePlayers[index]);
         player_t* playerMovedOnto = hashtable_find(game->players, stringAddress);
 
         if (playerMovedOnto != NULL) {
             printf("Player %c moved onto player %c\n", player->playerLetter, playerMovedOnto->playerLetter);
-
-            // Steal gold from the player being moved onto
-            player->goldCaptured += playerMovedOnto->goldCaptured;
-            playerMovedOnto->goldCaptured = 0;
 
             // Swap positions
             int tempX = playerMovedOnto->xPosition;

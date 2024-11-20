@@ -51,9 +51,6 @@ typedef struct game {
     int seed;
     char nextAvailableLetter;
     int goldRemaining;
-    int minGoldPiles;
-    int maxGoldPiles;
-    bool plain;
 } game_t;
 
 /**************** functions ****************/
@@ -64,16 +61,12 @@ typedef struct game {
  * Caller provides:
  *   - mapFile: a file pointer to the map file to use for the game.
  *   - seed: an integer seed for random number generation.
- *   - gold: the total amount of gold in the game.
- *   - minGoldPiles: the minimum number of gold piles.
- *   - maxGoldPiles: the maximum number of gold piles.
- *   - plain: a boolean indicating whether the game is in plain mode.
  * We initialize:
- *   - The game structure with map data, players, gold piles, and other metadata.
+ *   - The game structure with map data
  * Returns:
  *   - A pointer to the initialized game object or NULL on failure.
  */
-game_t* game_init(FILE* mapFile, int seed, int gold, int minGoldPiles, int maxGoldPiles, bool plain);
+game_t* game_init(FILE* mapFile, int seed);
 
 /**************** game_playerMove ****************/
 /* Handles movement for a player and updates their position and visible map.
